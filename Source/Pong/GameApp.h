@@ -52,6 +52,9 @@ class GameApp
 
     DirectX::XMFLOAT2       m_ballPos;
     DirectX::XMFLOAT2       m_ballSize;
+    DirectX::XMFLOAT2       m_paddlePos1;
+    DirectX::XMFLOAT2       m_paddlePos2;
+    DirectX::XMFLOAT2       m_paddleSize;
 
     bool                    m_key[256];
 
