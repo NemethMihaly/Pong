@@ -1,3 +1,4 @@
 .vs/
-Game/
+/Game/*
+!/Game/Data/
 Temp/
