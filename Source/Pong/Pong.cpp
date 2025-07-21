@@ -13,5 +13,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         g_pApp->Run();
     }
 
+    g_pApp->Uninitialize();
+
     return 0;
 }
