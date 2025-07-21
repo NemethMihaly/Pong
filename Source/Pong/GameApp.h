@@ -15,6 +15,17 @@ struct Vertex
     DirectX::XMFLOAT3 pos;
 };
 
+struct ConstantBuffer_PerFrame
+{
+    DirectX::XMFLOAT4X4 view;
+    DirectX::XMFLOAT4X4 projection;
+};
+
+struct ConstantBuffer_PerObject
+{
+    DirectX::XMFLOAT4X4 world;
+};
+
 class GameApp
 {
     HINSTANCE   m_hInst;
@@ -33,6 +44,8 @@ class GameApp
     Vertex*                 m_pVerts;
     UINT                    m_numVerts;
     ID3D11Buffer*           m_pVertexBuffer;
+    ID3D11Buffer*           m_pcbPerFrame;
+    ID3D11Buffer*           m_pcbPerObject;
 
 public:
     GameApp();

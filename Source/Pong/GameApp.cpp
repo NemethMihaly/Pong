@@ -29,6 +29,8 @@ GameApp::GameApp()
     m_pVerts                = nullptr;
     m_numVerts              = 0;
     m_pVertexBuffer         = nullptr;
+    m_pcbPerFrame           = nullptr;
+    m_pcbPerObject          = nullptr;
 }
 
 bool GameApp::Initialize()
@@ -52,6 +54,7 @@ bool GameApp::Initialize()
 
     SetRect(&m_rcclient, 0, 0, 640, 480);
     AdjustWindowRect(&m_rcclient, WS_OVERLAPPEDWINDOW, FALSE);
+
     m_hwnd = CreateWindow(L"PongWindowClass", L"Pong", WS_OVERLAPPEDWINDOW, 
         CW_USEDEFAULT, CW_USEDEFAULT, m_rcclient.right - m_rcclient.left, m_rcclient.bottom - m_rcclient.top, 
         nullptr, nullptr, m_hInst, nullptr);
@@ -108,6 +111,8 @@ void GameApp::Uninitialize()
     if (m_pd3dDeviceContext != nullptr)
         m_pd3dDeviceContext->ClearState();
 
+    RELEASE_COM(m_pcbPerObject);
+    RELEASE_COM(m_pcbPerFrame);
     RELEASE_COM(m_pVertexBuffer);
     RELEASE_COM(m_pPixelShader);
     RELEASE_COM(m_pVertexShader);
@@ -262,11 +267,46 @@ bool GameApp::InitDevice()
     if (FAILED(hr))
         return false;
 
+    bufferDesc.ByteWidth = sizeof(ConstantBuffer_PerFrame);
+    bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+    bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    hr = m_pd3dDevice->CreateBuffer(&bufferDesc, nullptr, &m_pcbPerFrame);
+    if (FAILED(hr))
+        return false;
+
+    bufferDesc.ByteWidth = sizeof(ConstantBuffer_PerObject);
+    bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+    bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    hr = m_pd3dDevice->CreateBuffer(&bufferDesc, nullptr, &m_pcbPerObject);
+    if (FAILED(hr))
+        return false;
+
     return true;
 }
 
 void GameApp::Render()
 {
+    {
+        D3D11_MAPPED_SUBRESOURCE mappedResource;
+        ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+
+        m_pd3dDeviceContext->Map(m_pcbPerFrame, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+
+        ConstantBuffer_PerFrame* pPerFrame = (ConstantBuffer_PerFrame*)mappedResource.pData;
+        XMStoreFloat4x4(&pPerFrame->view, XMMatrixTranspose(XMMatrixIdentity()));
+        XMStoreFloat4x4(&pPerFrame->projection,
+            XMMatrixTranspose(
+                XMMatrixOrthographicOffCenterLH(
+                    0.0f, m_viewport.Width, 0.0f, m_viewport.Height, -1.0f, 1.0f
+                    )
+                )
+            );
+
+        m_pd3dDeviceContext->Unmap(m_pcbPerFrame, 0);
+    }
+
     float clearColor[] = { 0.0f, 0.125f, 0.25f, 1.0f };
     m_pd3dDeviceContext->ClearRenderTargetView(m_pRenderTargetView, clearColor);
 
@@ -276,12 +316,35 @@ void GameApp::Render()
     m_pd3dDeviceContext->IASetInputLayout(m_pVertexLayout);
 
     m_pd3dDeviceContext->VSSetShader(m_pVertexShader, nullptr, 0);
+    m_pd3dDeviceContext->VSSetConstantBuffers(0, 1, &m_pcbPerFrame);
+    m_pd3dDeviceContext->VSSetConstantBuffers(1, 1, &m_pcbPerObject);
     m_pd3dDeviceContext->PSSetShader(m_pPixelShader, nullptr, 0);
 
     UINT stride = sizeof(Vertex);
     UINT offset = 0;
     m_pd3dDeviceContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &stride, &offset);
     m_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    
+    {
+        D3D11_MAPPED_SUBRESOURCE mappedResource;
+        ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+
+        m_pd3dDeviceContext->Map(m_pcbPerObject, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+
+        ConstantBuffer_PerObject* pPerObject = (ConstantBuffer_PerObject*)mappedResource.pData;
+        XMStoreFloat4x4(&pPerObject->world, XMMatrixTranspose(
+            XMMatrixScaling(64.0f, 64.0f, 0.0f) *
+            XMMatrixTranslation(
+                m_viewport.Width * 0.5f, 
+                m_viewport.Height * 0.5f, 
+                0.0f
+                )
+            )
+        );
+
+        m_pd3dDeviceContext->Unmap(m_pcbPerObject, 0);
+    }
+    
     m_pd3dDeviceContext->Draw(m_numVerts, 0);
 
     m_pDXGISwapChain->Present(0, 0);
