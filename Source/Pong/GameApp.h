@@ -42,8 +42,11 @@ class GameApp
     ID3D11VertexShader*     m_pVertexShader;
     ID3D11PixelShader*      m_pPixelShader;
     Vertex*                 m_pVerts;
+    WORD*                   m_pIndices;
     UINT                    m_numVerts;
+    UINT                    m_numPolys;
     ID3D11Buffer*           m_pVertexBuffer;
+    ID3D11Buffer*           m_pIndexBuffer;
     ID3D11Buffer*           m_pcbPerFrame;
     ID3D11Buffer*           m_pcbPerObject;
 

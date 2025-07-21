@@ -27,8 +27,11 @@ GameApp::GameApp()
     m_pVertexShader			= nullptr;
     m_pPixelShader			= nullptr;
     m_pVerts                = nullptr;
+    m_pIndices              = nullptr;
     m_numVerts              = 0;
+    m_numPolys              = 0;
     m_pVertexBuffer         = nullptr;
+    m_pIndexBuffer          = nullptr;
     m_pcbPerFrame           = nullptr;
     m_pcbPerObject          = nullptr;
 }
@@ -113,6 +116,7 @@ void GameApp::Uninitialize()
 
     RELEASE_COM(m_pcbPerObject);
     RELEASE_COM(m_pcbPerFrame);
+    RELEASE_COM(m_pIndexBuffer);
     RELEASE_COM(m_pVertexBuffer);
     RELEASE_COM(m_pPixelShader);
     RELEASE_COM(m_pVertexShader);
@@ -246,13 +250,19 @@ bool GameApp::InitDevice()
     if (FAILED(hr))
         return false;
 
-    m_numVerts = 3;
+    // A --- B
+    // |   / |
+    // | /   | 
+    // C --- D
+
+    m_numVerts = 4;
     m_pVerts = new (std::nothrow) Vertex[m_numVerts];
     assert(m_pVerts != nullptr && "Out of memory in GameApp::InitDevice()");
 
-    m_pVerts[0] = { XMFLOAT3( 0.0f, 0.5f, 0.0f) };
-    m_pVerts[1] = { XMFLOAT3( 0.5f,-0.5f, 0.0f) };
-    m_pVerts[2] = { XMFLOAT3(-0.5f,-0.5f, 0.0f) };
+    m_pVerts[0] = { XMFLOAT3( 0.5f, 0.5f, 0.0f) };
+    m_pVerts[1] = { XMFLOAT3(-0.5f, 0.5f, 0.0f) };
+    m_pVerts[2] = { XMFLOAT3( 0.5f,-0.5f, 0.0f) };
+    m_pVerts[3] = { XMFLOAT3(-0.5f,-0.5f, 0.0f) };
 
     D3D11_BUFFER_DESC bufferDesc;
     ZeroMemory(&bufferDesc, sizeof(D3D11_BUFFER_DESC));
@@ -264,6 +274,34 @@ bool GameApp::InitDevice()
     ZeroMemory(&initialData, sizeof(D3D11_SUBRESOURCE_DATA));
     initialData.pSysMem = m_pVerts;
     hr = m_pd3dDevice->CreateBuffer(&bufferDesc, &initialData, &m_pVertexBuffer);
+    if (FAILED(hr))
+        return false;
+
+    // A --- B
+    // |   / |
+    // | /   | 
+    // C --- D
+
+    m_numPolys = 2;
+    m_pIndices = new (std::nothrow) WORD[m_numPolys * 3];
+    assert(m_pIndices != nullptr && "Out of memory in GameApp::InitDevice()");
+
+    // Triangle #1: ACB
+    m_pIndices[0] = 0;
+    m_pIndices[1] = 2;
+    m_pIndices[2] = 1;
+
+    // Triangle #2: BCD
+    m_pIndices[3] = 1;
+    m_pIndices[4] = 2;
+    m_pIndices[5] = 3;
+
+    bufferDesc.ByteWidth = sizeof(WORD) * m_numPolys * 3;
+    bufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    bufferDesc.CPUAccessFlags = 0;
+    initialData.pSysMem = m_pIndices;
+    hr = m_pd3dDevice->CreateBuffer(&bufferDesc, &initialData, &m_pIndexBuffer);
     if (FAILED(hr))
         return false;
 
@@ -323,6 +361,7 @@ void GameApp::Render()
     UINT stride = sizeof(Vertex);
     UINT offset = 0;
     m_pd3dDeviceContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &stride, &offset);
+    m_pd3dDeviceContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
     m_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     
     {
@@ -345,7 +384,8 @@ void GameApp::Render()
         m_pd3dDeviceContext->Unmap(m_pcbPerObject, 0);
     }
     
-    m_pd3dDeviceContext->Draw(m_numVerts, 0);
+    //m_pd3dDeviceContext->Draw(m_numVerts, 0);
+    m_pd3dDeviceContext->DrawIndexed(m_numPolys * 3, 0, 0);
 
     m_pDXGISwapChain->Present(0, 0);
 }
