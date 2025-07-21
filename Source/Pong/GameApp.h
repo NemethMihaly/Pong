@@ -50,6 +50,11 @@ class GameApp
     ID3D11Buffer*           m_pcbPerFrame;
     ID3D11Buffer*           m_pcbPerObject;
 
+    DirectX::XMFLOAT2       m_ballPos;
+    DirectX::XMFLOAT2       m_ballSize;
+
+    bool                    m_key[256];
+
 public:
     GameApp();
 
@@ -63,6 +68,7 @@ public:
 private:
     bool InitDevice();
 
+    void Update(float deltaTime);
     void Render();
 };
 

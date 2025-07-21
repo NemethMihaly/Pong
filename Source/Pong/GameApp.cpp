@@ -34,6 +34,8 @@ GameApp::GameApp()
     m_pIndexBuffer          = nullptr;
     m_pcbPerFrame           = nullptr;
     m_pcbPerObject          = nullptr;
+
+    ZeroMemory(&m_key, sizeof(m_key));
 }
 
 bool GameApp::Initialize()
@@ -67,6 +69,11 @@ bool GameApp::Initialize()
     if (!InitDevice())
         return false;
 
+    m_ballPos.x = m_viewport.Width / 2.0f;
+    m_ballPos.y = m_viewport.Height / 2.0f;
+    m_ballSize.x = 10.0f;
+    m_ballSize.y = 10.0f;
+
     return true;
 }
 
@@ -86,6 +93,7 @@ void GameApp::Run()
         }
         else
         {
+            Update(1.0f / 30.0f);
             Render();
         }
     }
@@ -97,6 +105,14 @@ LRESULT GameApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
     case WM_DESTROY:
         PostQuitMessage(0);
+        break;
+
+    case WM_KEYDOWN:
+        g_pApp->m_key[(char)wParam] = true;
+        break;
+
+    case WM_KEYUP:
+        g_pApp->m_key[(char)wParam] = false;
         break;
 
     default:
@@ -324,6 +340,18 @@ bool GameApp::InitDevice()
     return true;
 }
 
+void GameApp::Update(float deltaTime)
+{
+    if (m_key['W'])
+    {
+        m_ballPos.y += 1.0f;
+    }
+    else if (m_key['S'])
+    {
+        m_ballPos.y -= 1.0f;
+    }
+}
+
 void GameApp::Render()
 {
     {
@@ -372,19 +400,14 @@ void GameApp::Render()
 
         ConstantBuffer_PerObject* pPerObject = (ConstantBuffer_PerObject*)mappedResource.pData;
         XMStoreFloat4x4(&pPerObject->world, XMMatrixTranspose(
-            XMMatrixScaling(64.0f, 64.0f, 0.0f) *
-            XMMatrixTranslation(
-                m_viewport.Width * 0.5f, 
-                m_viewport.Height * 0.5f, 
-                0.0f
-                )
+                XMMatrixScalingFromVector(XMLoadFloat2(&m_ballSize)) *
+                XMMatrixTranslationFromVector(XMLoadFloat2(&m_ballPos))
             )
         );
 
         m_pd3dDeviceContext->Unmap(m_pcbPerObject, 0);
     }
     
-    //m_pd3dDeviceContext->Draw(m_numVerts, 0);
     m_pd3dDeviceContext->DrawIndexed(m_numPolys * 3, 0, 0);
 
     m_pDXGISwapChain->Present(0, 0);
