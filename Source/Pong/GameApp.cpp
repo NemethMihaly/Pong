@@ -1,5 +1,7 @@
+#include <cmath>
 #include <cassert>
 #include <new>
+#include <chrono>
 #include "GameApp.h"
 #include "Debugging/Logger.h"
 
@@ -11,12 +13,12 @@ GameApp* g_pApp = nullptr;
 
 GameApp::GameApp()
 {
-    g_pApp		= this;
+    g_pApp		            = this;
 
-    m_hInst		= nullptr;
+    m_hInst		            = nullptr;
 
     ZeroMemory(&m_rcclient, sizeof(RECT));
-    m_hwnd		= nullptr;
+    m_hwnd		            = nullptr;
 
     m_pd3dDevice			= nullptr;
     m_pd3dDeviceContext		= nullptr;
@@ -37,6 +39,7 @@ GameApp::GameApp()
 
     XMStoreFloat2(&m_ballPos,    XMVectorZero());
     XMStoreFloat2(&m_ballSize,   XMVectorZero());
+    XMStoreFloat2(&m_ballVelocity, XMVectorZero());
 
     XMStoreFloat2(&m_paddlePos1, XMVectorZero());
     XMStoreFloat2(&m_paddlePos2, XMVectorZero());
@@ -80,6 +83,8 @@ bool GameApp::Initialize()
     m_ballPos.y = m_viewport.Height / 2.0f;
     m_ballSize.x = 10.0f;
     m_ballSize.y = 10.0f;
+    m_ballVelocity.x = 350.0f;
+    //m_ballVelocity.y = 300.0f;
 
     m_paddlePos1.x = m_viewport.Width * 0.1f;
     m_paddlePos1.y = m_viewport.Height / 2.0f;
@@ -96,6 +101,9 @@ void GameApp::Run()
     if (!IsWindowVisible(m_hwnd))
         ShowWindow(m_hwnd, SW_SHOW);
 
+    std::chrono::high_resolution_clock::time_point lastTime =
+        std::chrono::high_resolution_clock::now();
+
     MSG msg;
     ZeroMemory(&msg, sizeof(MSG));
     while (msg.message != WM_QUIT)
@@ -107,7 +115,14 @@ void GameApp::Run()
         }
         else
         {
-            Update(1.0f / 30.0f);
+            std::chrono::high_resolution_clock::time_point currentTime =
+                std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration<float>(currentTime - lastTime);
+            lastTime = currentTime;
+
+            float deltaTime = duration.count();
+            Update(deltaTime);
+
             Render();
         }
     }
@@ -358,11 +373,50 @@ void GameApp::Update(float deltaTime)
 {
     if (m_key['W'])
     {
-        m_paddlePos1.y += 1.0f;
+        m_paddlePos1.y += 300.0f * deltaTime;
     }
     else if (m_key['S'])
     {
-        m_paddlePos1.y -= 1.0f;
+        m_paddlePos1.y -= 300.0f * deltaTime;
+    }
+
+    // Clamp the paddle's Y position to ensure it stays within the top and bottom edges of the viewport
+    if (m_paddlePos1.y + m_paddleSize.y / 2.0f > m_viewport.Height)
+    {
+        m_paddlePos1.y = m_viewport.Height - m_paddleSize.y / 2.0f;
+    }
+    else if (m_paddlePos1.y - m_paddleSize.y / 2.0f < 0.0f)
+    {
+        m_paddlePos1.y = m_paddleSize.y / 2.0f;
+    }
+
+    // Move the ball based on its velocity
+    m_ballPos.x += m_ballVelocity.x * deltaTime;
+    m_ballPos.y += m_ballVelocity.y * deltaTime;
+
+    // Bounce the ball off the top and bottom edges of the viewport
+    if (m_ballPos.y + m_ballSize.y / 2.0f > m_viewport.Height)
+    {
+        m_ballVelocity.y = -m_ballVelocity.y;
+    }
+    else if (m_ballPos.y + m_ballSize.y / 2.0f < 0.0f)
+    {
+        m_ballVelocity.y = -m_ballVelocity.y;
+    }
+
+    // Bounce the ball off the left and right paddles
+    float deltaPosY = std::abs(m_ballPos.y - m_paddlePos2.y);
+    if (m_ballPos.x + m_ballSize.x / 2.0f > m_paddlePos2.x - m_paddleSize.x / 2.0f &&
+        deltaPosY <= m_paddleSize.y / 2.0f)
+    {
+        m_ballVelocity.x = -m_ballVelocity.x;
+    }
+
+    deltaPosY = std::abs(m_ballPos.y - m_paddlePos1.y);
+    if (m_ballPos.x - m_ballSize.x / 2.0f < m_paddlePos1.x + m_paddleSize.x / 2.0f &&
+        deltaPosY <= m_paddleSize.y / 2.0f)
+    {
+        m_ballVelocity.x = -m_ballVelocity.x;
     }
 }
 

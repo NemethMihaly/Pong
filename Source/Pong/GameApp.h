@@ -28,10 +28,10 @@ struct ConstantBuffer_PerObject
 
 class GameApp
 {
-    HINSTANCE   m_hInst;
+    HINSTANCE               m_hInst;
 
-    RECT        m_rcclient;
-    HWND        m_hwnd;
+    RECT                    m_rcclient;
+    HWND                    m_hwnd;
 
     ID3D11Device*           m_pd3dDevice;
     ID3D11DeviceContext*    m_pd3dDeviceContext;
@@ -52,6 +52,8 @@ class GameApp
 
     DirectX::XMFLOAT2       m_ballPos;
     DirectX::XMFLOAT2       m_ballSize;
+    DirectX::XMFLOAT2       m_ballVelocity;
+
     DirectX::XMFLOAT2       m_paddlePos1;
     DirectX::XMFLOAT2       m_paddlePos2;
     DirectX::XMFLOAT2       m_paddleSize;
