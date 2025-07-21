@@ -391,8 +391,8 @@ void GameApp::Update(float deltaTime)
             m_ballPos.y = m_viewport.Height / 2.0f;
             m_ballSize.x = 10.0f;
             m_ballSize.y = 10.0f;
-            m_ballVelocity.x = 350.0f;
-            //m_ballVelocity.y = 300.0f;
+            m_ballVelocity.x = -350.0f;
+            m_ballVelocity.y = 300.0f;
 
             m_paddlePos1.x = m_viewport.Width * 0.1f;
             m_paddlePos1.y = m_viewport.Height / 2.0f;
@@ -469,12 +469,12 @@ void GameApp::Update(float deltaTime)
             // Check if the ball has passed beyond the left or right edge — update the score accordingly
             if (m_ballPos.x < 0.0f)
             {
-                ++m_paddleScore1;
+                ++m_paddleScore2;
                 m_state = GameState::LoadingGameEnvironment;
             }
             else if (m_ballPos.x > m_viewport.Width)
             {
-                ++m_paddleScore2;
+                ++m_paddleScore1;
                 m_state = GameState::LoadingGameEnvironment;
             }
 
