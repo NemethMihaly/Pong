@@ -1,8 +1,6 @@
 #include <Windows.h>
-
 #include <cstdio>
 #include <cstdarg>
-
 #include "Logger.h"
 
 namespace Logger

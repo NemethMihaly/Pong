@@ -144,10 +144,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Debugging\Logger.cpp" />
+    <ClCompile Include="GameApp.cpp" />
     <ClCompile Include="Pong.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Debugging\Logger.h" />
+    <ClInclude Include="GameApp.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

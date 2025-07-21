@@ -5,6 +5,7 @@
     <ClCompile Include="Debugging\Logger.cpp">
       <Filter>Debugging</Filter>
     </ClCompile>
+    <ClCompile Include="GameApp.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Debugging">
@@ -15,5 +16,6 @@
     <ClInclude Include="Debugging\Logger.h">
       <Filter>Debugging</Filter>
     </ClInclude>
+    <ClInclude Include="GameApp.h" />
   </ItemGroup>
 </Project>
