@@ -45,6 +45,9 @@ GameApp::GameApp()
     XMStoreFloat2(&m_paddlePos2, XMVectorZero());
     XMStoreFloat2(&m_paddleSize, XMVectorZero());
 
+    m_paddleScore1 = 0;
+    m_paddleScore2 = 0;
+
     ZeroMemory(&m_key, sizeof(m_key));
 }
 
@@ -137,11 +140,11 @@ LRESULT GameApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         break;
 
     case WM_KEYDOWN:
-        g_pApp->m_key[(char)wParam] = true;
+        g_pApp->OnKeyDown((char)wParam);
         break;
 
     case WM_KEYUP:
-        g_pApp->m_key[(char)wParam] = false;
+        g_pApp->OnKeyUp((char)wParam);
         break;
 
     default:
@@ -149,6 +152,21 @@ LRESULT GameApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     }
 
     return 0;
+}
+
+void GameApp::OnKeyDown(char c)
+{
+    m_key[(int)c] = true;
+}
+
+void GameApp::OnKeyUp(char c)
+{
+    m_key[(int)c] = false;
+
+    if (c == ' ')
+    {
+        ++m_paddleScore1;
+    }
 }
 
 void GameApp::Uninitialize()
@@ -233,10 +251,10 @@ bool GameApp::InitDevice()
     swapChainDesc.SampleDesc.Count = 1;
     swapChainDesc.SampleDesc.Quality = 0;
     swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swapChainDesc.BufferCount = 2;
+    swapChainDesc.BufferCount = 1;
     swapChainDesc.OutputWindow = m_hwnd;
     swapChainDesc.Windowed = TRUE;
-    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
     swapChainDesc.Flags = 0;
 
     D3D_FEATURE_LEVEL featureLevel;
@@ -255,8 +273,8 @@ bool GameApp::InitDevice()
     if (FAILED(hr))
         return false;
 
-    m_viewport.TopLeftX = 0;
-    m_viewport.TopLeftY = 0;
+    m_viewport.TopLeftX = 0.0f;
+    m_viewport.TopLeftY = 0.0f;
     m_viewport.Width = (FLOAT)width;
     m_viewport.Height = (FLOAT)height;
     m_viewport.MinDepth = 0.0f;
@@ -516,6 +534,54 @@ void GameApp::Render()
     }
 
     m_pd3dDeviceContext->DrawIndexed(m_numPolys * 3, 0, 0);
+
+    // Draw the score for the paddle (1)
+    for (int i = 0; i < m_paddleScore1; ++i)
+    {
+        float offsetX = 10.0f * i;
+
+        {
+            D3D11_MAPPED_SUBRESOURCE mappedResource;
+            ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+
+            m_pd3dDeviceContext->Map(m_pcbPerObject, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+
+            ConstantBuffer_PerObject* pPerObject = (ConstantBuffer_PerObject*)mappedResource.pData;
+            XMStoreFloat4x4(&pPerObject->world, XMMatrixTranspose(
+                    XMMatrixScaling(6.0f, 6.0f, 1.0f) *
+                    XMMatrixTranslation(m_viewport.Width * 0.4f + offsetX, m_viewport.Height * 0.8f, 0.0f)
+                )
+            );
+
+            m_pd3dDeviceContext->Unmap(m_pcbPerObject, 0);
+        }
+
+        m_pd3dDeviceContext->DrawIndexed(m_numPolys * 3, 0, 0);
+    }
+
+    // Draw the score for the paddle (2)
+    for (int i = 0; i < m_paddleScore2; ++i)
+    {
+        float offsetX = 10.0f * i;
+
+        {
+            D3D11_MAPPED_SUBRESOURCE mappedResource;
+            ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+
+            m_pd3dDeviceContext->Map(m_pcbPerObject, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+
+            ConstantBuffer_PerObject* pPerObject = (ConstantBuffer_PerObject*)mappedResource.pData;
+            XMStoreFloat4x4(&pPerObject->world, XMMatrixTranspose(
+                    XMMatrixScaling(6.0f, 6.0f, 1.0f) *
+                    XMMatrixTranslation(m_viewport.Width * 0.6f + offsetX, m_viewport.Height * 0.8f, 0.0f)
+                )
+            );
+
+            m_pd3dDeviceContext->Unmap(m_pcbPerObject, 0);
+        }
+
+        m_pd3dDeviceContext->DrawIndexed(m_numPolys * 3, 0, 0);
+    }
 
     m_pDXGISwapChain->Present(0, 0);
 }

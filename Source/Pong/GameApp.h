@@ -58,6 +58,9 @@ class GameApp
     DirectX::XMFLOAT2       m_paddlePos2;
     DirectX::XMFLOAT2       m_paddleSize;
 
+    int                     m_paddleScore1;
+    int                     m_paddleScore2;
+
     bool                    m_key[256];
 
 public:
@@ -67,6 +70,8 @@ public:
     void Run();
 
     static LRESULT CALLBACK MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+    void OnKeyDown(char c);
+    void OnKeyUp(char c);
 
     void Uninitialize();
 
