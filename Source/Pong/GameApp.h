@@ -26,6 +26,14 @@ struct ConstantBuffer_PerObject
     DirectX::XMFLOAT4X4 world;
 };
 
+enum class GameState
+{
+    Invalid = 0,
+    LoadingGameEnvironment,
+    WaitingForPlayers,
+    Running,
+};
+
 class GameApp
 {
     HINSTANCE               m_hInst;
@@ -49,6 +57,8 @@ class GameApp
     ID3D11Buffer*           m_pIndexBuffer;
     ID3D11Buffer*           m_pcbPerFrame;
     ID3D11Buffer*           m_pcbPerObject;
+
+    GameState               m_state;
 
     DirectX::XMFLOAT2       m_ballPos;
     DirectX::XMFLOAT2       m_ballSize;

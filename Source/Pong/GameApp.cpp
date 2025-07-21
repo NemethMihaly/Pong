@@ -37,6 +37,8 @@ GameApp::GameApp()
     m_pcbPerFrame           = nullptr;
     m_pcbPerObject          = nullptr;
 
+    m_state                 = (GameState)0;
+
     XMStoreFloat2(&m_ballPos,    XMVectorZero());
     XMStoreFloat2(&m_ballSize,   XMVectorZero());
     XMStoreFloat2(&m_ballVelocity, XMVectorZero());
@@ -82,19 +84,7 @@ bool GameApp::Initialize()
     if (!InitDevice())
         return false;
 
-    m_ballPos.x = m_viewport.Width / 2.0f;
-    m_ballPos.y = m_viewport.Height / 2.0f;
-    m_ballSize.x = 10.0f;
-    m_ballSize.y = 10.0f;
-    m_ballVelocity.x = 350.0f;
-    //m_ballVelocity.y = 300.0f;
-
-    m_paddlePos1.x = m_viewport.Width * 0.1f;
-    m_paddlePos1.y = m_viewport.Height / 2.0f;
-    m_paddlePos2.x = m_viewport.Width * 0.9f;
-    m_paddlePos2.y = m_viewport.Height / 2.0f;
-    m_paddleSize.x = 10.0f;
-    m_paddleSize.y = 60.0f;
+    m_state = GameState::LoadingGameEnvironment;
 
     return true;
 }
@@ -163,9 +153,13 @@ void GameApp::OnKeyUp(char c)
 {
     m_key[(int)c] = false;
 
-    if (c == ' ')
+    if (c == 'E')
     {
         ++m_paddleScore1;
+    }
+    else if (c == 'R')
+    {
+        ++m_paddleScore2;
     }
 }
 
@@ -388,53 +382,107 @@ bool GameApp::InitDevice()
 }
 
 void GameApp::Update(float deltaTime)
-{
-    if (m_key['W'])
-    {
-        m_paddlePos1.y += 300.0f * deltaTime;
-    }
-    else if (m_key['S'])
-    {
-        m_paddlePos1.y -= 300.0f * deltaTime;
-    }
+{  
+    switch (m_state)
+    {        
+    case GameState::LoadingGameEnvironment:
+        {
+            m_ballPos.x = m_viewport.Width / 2.0f;
+            m_ballPos.y = m_viewport.Height / 2.0f;
+            m_ballSize.x = 10.0f;
+            m_ballSize.y = 10.0f;
+            m_ballVelocity.x = 350.0f;
+            //m_ballVelocity.y = 300.0f;
 
-    // Clamp the paddle's Y position to ensure it stays within the top and bottom edges of the viewport
-    if (m_paddlePos1.y + m_paddleSize.y / 2.0f > m_viewport.Height)
-    {
-        m_paddlePos1.y = m_viewport.Height - m_paddleSize.y / 2.0f;
-    }
-    else if (m_paddlePos1.y - m_paddleSize.y / 2.0f < 0.0f)
-    {
-        m_paddlePos1.y = m_paddleSize.y / 2.0f;
-    }
+            m_paddlePos1.x = m_viewport.Width * 0.1f;
+            m_paddlePos1.y = m_viewport.Height / 2.0f;
+            m_paddlePos2.x = m_viewport.Width * 0.9f;
+            m_paddlePos2.y = m_viewport.Height / 2.0f;
+            m_paddleSize.x = 10.0f;
+            m_paddleSize.y = 60.0f;
 
-    // Move the ball based on its velocity
-    m_ballPos.x += m_ballVelocity.x * deltaTime;
-    m_ballPos.y += m_ballVelocity.y * deltaTime;
+            m_state = GameState::WaitingForPlayers;
 
-    // Bounce the ball off the top and bottom edges of the viewport
-    if (m_ballPos.y + m_ballSize.y / 2.0f > m_viewport.Height)
-    {
-        m_ballVelocity.y = -m_ballVelocity.y;
-    }
-    else if (m_ballPos.y + m_ballSize.y / 2.0f < 0.0f)
-    {
-        m_ballVelocity.y = -m_ballVelocity.y;
-    }
+            break;
+        }
 
-    // Bounce the ball off the left and right paddles
-    float deltaPosY = std::abs(m_ballPos.y - m_paddlePos2.y);
-    if (m_ballPos.x + m_ballSize.x / 2.0f > m_paddlePos2.x - m_paddleSize.x / 2.0f &&
-        deltaPosY <= m_paddleSize.y / 2.0f)
-    {
-        m_ballVelocity.x = -m_ballVelocity.x;
-    }
+    case GameState::WaitingForPlayers:
+        {
+            LOG("GameApp", Info, "Press SPACE to start");
 
-    deltaPosY = std::abs(m_ballPos.y - m_paddlePos1.y);
-    if (m_ballPos.x - m_ballSize.x / 2.0f < m_paddlePos1.x + m_paddleSize.x / 2.0f &&
-        deltaPosY <= m_paddleSize.y / 2.0f)
-    {
-        m_ballVelocity.x = -m_ballVelocity.x;
+            if (m_key[' '])
+                m_state = GameState::Running;
+
+            break;
+        }
+
+    case GameState::Running:
+        {
+            if (m_key['W'])
+            {
+                m_paddlePos1.y += 300.0f * deltaTime;
+            }
+            else if (m_key['S'])
+            {
+                m_paddlePos1.y -= 300.0f * deltaTime;
+            }
+
+            // Clamp the paddle's Y position to ensure it stays within the top and bottom edges of the viewport
+            if (m_paddlePos1.y + m_paddleSize.y / 2.0f > m_viewport.Height)
+            {
+                m_paddlePos1.y = m_viewport.Height - m_paddleSize.y / 2.0f;
+            }
+            else if (m_paddlePos1.y - m_paddleSize.y / 2.0f < 0.0f)
+            {
+                m_paddlePos1.y = m_paddleSize.y / 2.0f;
+            }
+
+            // Move the ball based on its velocity
+            m_ballPos.x += m_ballVelocity.x * deltaTime;
+            m_ballPos.y += m_ballVelocity.y * deltaTime;
+
+            // Bounce the ball off the top and bottom edges of the viewport
+            if (m_ballPos.y + m_ballSize.y / 2.0f > m_viewport.Height)
+            {
+                m_ballVelocity.y = -m_ballVelocity.y;
+            }
+            else if (m_ballPos.y + m_ballSize.y / 2.0f < 0.0f)
+            {
+                m_ballVelocity.y = -m_ballVelocity.y;
+            }
+
+            // Bounce the ball off the left and right paddles
+            float deltaPosY = std::abs(m_ballPos.y - m_paddlePos2.y);
+            if (m_ballPos.x + m_ballSize.x / 2.0f > m_paddlePos2.x - m_paddleSize.x / 2.0f &&
+                deltaPosY <= m_paddleSize.y / 2.0f)
+            {
+                m_ballVelocity.x = -m_ballVelocity.x;
+            }
+
+            deltaPosY = std::abs(m_ballPos.y - m_paddlePos1.y);
+            if (m_ballPos.x - m_ballSize.x / 2.0f < m_paddlePos1.x + m_paddleSize.x / 2.0f &&
+                deltaPosY <= m_paddleSize.y / 2.0f)
+            {
+                m_ballVelocity.x = -m_ballVelocity.x;
+            }
+
+            // Check if the ball has passed beyond the left or right edge — update the score accordingly
+            if (m_ballPos.x < 0.0f)
+            {
+                ++m_paddleScore1;
+                m_state = GameState::LoadingGameEnvironment;
+            }
+            else if (m_ballPos.x > m_viewport.Width)
+            {
+                ++m_paddleScore2;
+                m_state = GameState::LoadingGameEnvironment;
+            }
+
+            break;
+        }
+
+    default:
+        assert(0 && "Unrecognized state");
     }
 }
 
