@@ -2,5 +2,18 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="Pong.cpp" />
+    <ClCompile Include="Debugging\Logger.cpp">
+      <Filter>Debugging</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Debugging">
+      <UniqueIdentifier>{a2ad855b-016a-4d0d-8dda-b79af7d1ff76}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Debugging\Logger.h">
+      <Filter>Debugging</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
