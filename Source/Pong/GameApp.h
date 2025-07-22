@@ -34,6 +34,16 @@ enum class GameState
     Running,
 };
 
+struct Paddle
+{
+    DirectX::XMFLOAT2 pos;
+    DirectX::XMFLOAT2 scale;
+
+    DirectX::XMFLOAT2 velocity;
+
+    Paddle() { ZeroMemory(this, sizeof(Paddle)); }
+};
+
 class GameApp
 {
     HINSTANCE               m_hInst;
@@ -64,9 +74,8 @@ class GameApp
     DirectX::XMFLOAT2       m_ballSize;
     DirectX::XMFLOAT2       m_ballVelocity;
 
-    DirectX::XMFLOAT2       m_paddlePos1;
-    DirectX::XMFLOAT2       m_paddlePos2;
-    DirectX::XMFLOAT2       m_paddleSize;
+    Paddle                  m_paddle1;
+    Paddle                  m_paddle2;
 
     int                     m_paddleScore1;
     int                     m_paddleScore2;

@@ -43,10 +43,6 @@ GameApp::GameApp()
     XMStoreFloat2(&m_ballSize,   XMVectorZero());
     XMStoreFloat2(&m_ballVelocity, XMVectorZero());
 
-    XMStoreFloat2(&m_paddlePos1, XMVectorZero());
-    XMStoreFloat2(&m_paddlePos2, XMVectorZero());
-    XMStoreFloat2(&m_paddleSize, XMVectorZero());
-
     m_paddleScore1 = 0;
     m_paddleScore2 = 0;
 
@@ -392,14 +388,17 @@ void GameApp::Update(float deltaTime)
             m_ballSize.x = 10.0f;
             m_ballSize.y = 10.0f;
             m_ballVelocity.x = -350.0f;
-            m_ballVelocity.y = 300.0f;
+            //m_ballVelocity.y = 300.0f;
 
-            m_paddlePos1.x = m_viewport.Width * 0.1f;
-            m_paddlePos1.y = m_viewport.Height / 2.0f;
-            m_paddlePos2.x = m_viewport.Width * 0.9f;
-            m_paddlePos2.y = m_viewport.Height / 2.0f;
-            m_paddleSize.x = 10.0f;
-            m_paddleSize.y = 60.0f;
+            m_paddle1.pos.x = m_viewport.Width * 0.1f;
+            m_paddle1.pos.y = m_viewport.Height / 2.0f;
+            m_paddle1.scale.x = 10.0f;
+            m_paddle1.scale.y = 60.0f;
+
+            m_paddle2.pos.x = m_viewport.Width * 0.9f;
+            m_paddle2.pos.y = m_viewport.Height / 2.0f;
+            m_paddle2.scale.x = 10.0f;
+            m_paddle2.scale.y = 60.0f;
 
             m_state = GameState::WaitingForPlayers;
 
@@ -413,6 +412,11 @@ void GameApp::Update(float deltaTime)
             if (m_key[' '])
                 m_state = GameState::Running;
 
+            if (m_paddleScore1 >= 5 || m_paddleScore2 >= 5)
+            {
+                PostQuitMessage(0);
+            }
+
             break;
         }
 
@@ -420,21 +424,29 @@ void GameApp::Update(float deltaTime)
         {
             if (m_key['W'])
             {
-                m_paddlePos1.y += 300.0f * deltaTime;
+                m_paddle1.velocity.y = 300.0f;
             }
             else if (m_key['S'])
             {
-                m_paddlePos1.y -= 300.0f * deltaTime;
+                m_paddle1.velocity.y = -300.0f;
+            }
+            else
+            {
+                m_paddle1.velocity.y = 0.0f;
             }
 
+            // Update paddle positions based on their velocities
+            m_paddle1.pos.x += m_paddle1.velocity.x * deltaTime;
+            m_paddle1.pos.y += m_paddle1.velocity.y * deltaTime;
+
             // Clamp the paddle's Y position to ensure it stays within the top and bottom edges of the viewport
-            if (m_paddlePos1.y + m_paddleSize.y / 2.0f > m_viewport.Height)
+            if (m_paddle1.pos.y + m_paddle1.scale.y / 2.0f > m_viewport.Height)
             {
-                m_paddlePos1.y = m_viewport.Height - m_paddleSize.y / 2.0f;
+                m_paddle1.pos.y = m_viewport.Height - m_paddle1.scale.y / 2.0f;
             }
-            else if (m_paddlePos1.y - m_paddleSize.y / 2.0f < 0.0f)
+            else if (m_paddle1.pos.y - m_paddle1.scale.y / 2.0f < 0.0f)
             {
-                m_paddlePos1.y = m_paddleSize.y / 2.0f;
+                m_paddle1.pos.y = m_paddle1.scale.y / 2.0f;
             }
 
             // Move the ball based on its velocity
@@ -452,16 +464,16 @@ void GameApp::Update(float deltaTime)
             }
 
             // Bounce the ball off the left and right paddles
-            float deltaPosY = std::abs(m_ballPos.y - m_paddlePos2.y);
-            if (m_ballPos.x + m_ballSize.x / 2.0f > m_paddlePos2.x - m_paddleSize.x / 2.0f &&
-                deltaPosY <= m_paddleSize.y / 2.0f)
+            float deltaPosY = std::abs(m_ballPos.y - m_paddle2.pos.y);
+            if (m_ballPos.x + m_ballSize.x / 2.0f > m_paddle2.pos.x - m_paddle2.scale.x / 2.0f &&
+                deltaPosY <= m_paddle2.scale.y / 2.0f)
             {
                 m_ballVelocity.x = -m_ballVelocity.x;
             }
 
-            deltaPosY = std::abs(m_ballPos.y - m_paddlePos1.y);
-            if (m_ballPos.x - m_ballSize.x / 2.0f < m_paddlePos1.x + m_paddleSize.x / 2.0f &&
-                deltaPosY <= m_paddleSize.y / 2.0f)
+            deltaPosY = std::abs(m_ballPos.y - m_paddle1.pos.y);
+            if (m_ballPos.x - m_ballSize.x / 2.0f < m_paddle1.pos.x + m_paddle1.scale.x / 2.0f &&
+                deltaPosY <= m_paddle1.scale.y / 2.0f)
             {
                 m_ballVelocity.x = -m_ballVelocity.x;
             }
@@ -554,8 +566,8 @@ void GameApp::Render()
 
         ConstantBuffer_PerObject* pPerObject = (ConstantBuffer_PerObject*)mappedResource.pData;
         XMStoreFloat4x4(&pPerObject->world, XMMatrixTranspose(
-                XMMatrixScalingFromVector(XMLoadFloat2(&m_paddleSize)) *
-                XMMatrixTranslationFromVector(XMLoadFloat2(&m_paddlePos1))
+                XMMatrixScalingFromVector(XMLoadFloat2(&m_paddle1.scale)) *
+                XMMatrixTranslationFromVector(XMLoadFloat2(&m_paddle1.pos))
             )
         );
 
@@ -573,8 +585,8 @@ void GameApp::Render()
 
         ConstantBuffer_PerObject* pPerObject = (ConstantBuffer_PerObject*)mappedResource.pData;
         XMStoreFloat4x4(&pPerObject->world, XMMatrixTranspose(
-                XMMatrixScalingFromVector(XMLoadFloat2(&m_paddleSize)) *
-                XMMatrixTranslationFromVector(XMLoadFloat2(&m_paddlePos2))
+                XMMatrixScalingFromVector(XMLoadFloat2(&m_paddle2.scale)) *
+                XMMatrixTranslationFromVector(XMLoadFloat2(&m_paddle2.pos))
             )
         );
 
