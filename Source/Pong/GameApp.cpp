@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <cmath>
 #include <cassert>
 #include <new>
@@ -37,6 +38,12 @@ GameApp::GameApp()
     m_pcbPerFrame           = nullptr;
     m_pcbPerObject          = nullptr;
 
+    m_pDirectSound          = nullptr;
+    m_pPrimarySoundBuffer   = nullptr;
+    m_pSoundListener        = nullptr;
+
+    m_pSecondarySoundBuffer = nullptr;
+
     m_state                 = (GameState)0;
 
     m_paddleScore1 = 0;
@@ -74,6 +81,9 @@ bool GameApp::Initialize()
         return false;
 
     if (!InitDevice())
+        return false;
+
+    if (!InitSound())
         return false;
 
     m_state = GameState::LoadingGameEnvironment;
@@ -157,6 +167,14 @@ void GameApp::OnKeyUp(char c)
 
 void GameApp::Uninitialize()
 {
+    m_pSecondarySoundBuffer->Stop();
+
+    RELEASE_COM(m_pSecondarySoundBuffer);
+
+    RELEASE_COM(m_pSoundListener);
+    RELEASE_COM(m_pPrimarySoundBuffer);
+    RELEASE_COM(m_pDirectSound);
+
     if (m_pVerts != nullptr)
         delete[] m_pVerts;
 
@@ -367,6 +385,189 @@ bool GameApp::InitDevice()
     bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     hr = m_pd3dDevice->CreateBuffer(&bufferDesc, nullptr, &m_pcbPerObject);
+    if (FAILED(hr))
+        return false;
+
+    return true;
+}
+
+bool GameApp::InitSound()
+{
+    HRESULT hr = S_OK;
+    hr = DirectSoundCreate8(nullptr, &m_pDirectSound, nullptr);
+    if (FAILED(hr))
+        return false;
+
+    hr = m_pDirectSound->SetCooperativeLevel(m_hwnd, DSSCL_PRIORITY);
+    if (FAILED(hr))
+        return false;
+
+    DSBUFFERDESC dsBufferDesc;
+    ZeroMemory(&dsBufferDesc, sizeof(DSBUFFERDESC));
+    dsBufferDesc.dwSize = sizeof(DSBUFFERDESC);
+    dsBufferDesc.dwFlags = DSBCAPS_PRIMARYBUFFER | DSBCAPS_CTRLVOLUME | DSBCAPS_CTRL3D;
+    hr = m_pDirectSound->CreateSoundBuffer(&dsBufferDesc, &m_pPrimarySoundBuffer, nullptr);
+    if (FAILED(hr))
+        return false;
+
+    WAVEFORMATEX waveformat;
+    ZeroMemory(&waveformat, sizeof(WAVEFORMATEX));
+    waveformat.wFormatTag = WAVE_FORMAT_PCM;     
+    waveformat.nChannels = 8;      
+    waveformat.nSamplesPerSec = 44100; 
+    waveformat.wBitsPerSample = 16; 
+    waveformat.nBlockAlign = (waveformat.wBitsPerSample / 8) * waveformat.nChannels;    
+    waveformat.nAvgBytesPerSec = waveformat.nSamplesPerSec * waveformat.nBlockAlign;
+    waveformat.cbSize = 0;         
+    hr = m_pPrimarySoundBuffer->SetFormat(&waveformat);
+    if (FAILED(hr))
+        return false;
+
+    hr = m_pPrimarySoundBuffer->QueryInterface(IID_IDirectSound3DListener8, (LPVOID*)&m_pSoundListener);
+    if (FAILED(hr))
+        return false;
+
+    m_pSoundListener->SetPosition(0.0f, 0.0f, 0.0f, DS3D_IMMEDIATE);
+
+    FILE* fp = nullptr;
+    errno_t err = fopen_s(&fp, "Data/sound01.wav", "rb");
+    if (err != 0)
+        return false;
+    
+    RiffWaveHeaderType riffWaveHeader;
+    size_t i = fread(&riffWaveHeader, sizeof(RiffWaveHeaderType), 1, fp);
+    if (i != 1)
+        return false;
+
+    if (riffWaveHeader.chunkId[0] != 'R' ||
+        riffWaveHeader.chunkId[1] != 'I' ||
+        riffWaveHeader.chunkId[2] != 'F' ||
+        riffWaveHeader.chunkId[3] != 'F')
+        return false;
+
+    if (riffWaveHeader.format[0] != 'W' ||
+        riffWaveHeader.format[1] != 'A' ||
+        riffWaveHeader.format[2] != 'V' ||
+        riffWaveHeader.format[3] != 'E')
+        return false;
+
+    SubChunkHeaderType subChunkHeader;
+    bool formatFound = false;
+    while (!formatFound)
+    {
+        i = fread(&subChunkHeader, sizeof(SubChunkHeaderType), 1, fp);
+        if (i != 1)
+            return false;
+
+        if (subChunkHeader.subChunkId[0] == 'f' &&
+            subChunkHeader.subChunkId[1] == 'm' &&
+            subChunkHeader.subChunkId[2] == 't' &&
+            subChunkHeader.subChunkId[3] == ' ')
+        {
+            formatFound = true;
+        }
+        else
+        {
+            fseek(fp, subChunkHeader.subChunkSize, SEEK_CUR);
+        }
+    }
+
+    FmtType datFmt;
+    i = fread(&datFmt, sizeof(FmtType), 1, fp);
+    if (i != 1)
+        return false;
+    
+    if (datFmt.audioFormat != WAVE_FORMAT_PCM)
+        return false;
+    
+    if (datFmt.numChannels != 2)
+        return false;
+
+    if (datFmt.sampleRate != 44100)
+        return false;
+
+    if (datFmt.bitsPerSample != 16)
+        return false;
+
+    auto offset = subChunkHeader.subChunkSize - 16;
+    fseek(fp, offset, SEEK_CUR);
+
+    bool dataFound = false;
+    while (!dataFound)
+    {
+        i = fread(&subChunkHeader, sizeof(SubChunkHeaderType), 1, fp);
+        if (i != 1)
+            return false;
+
+        if (subChunkHeader.subChunkId[0] == 'd' && 
+            subChunkHeader.subChunkId[1] == 'a' && 
+            subChunkHeader.subChunkId[2] == 't' && 
+            subChunkHeader.subChunkId[3] == 'a')
+        {
+            dataFound = true;
+        }
+        else
+        {
+            fseek(fp, subChunkHeader.subChunkSize, SEEK_CUR);
+        }
+    }
+
+    size_t dataSize = subChunkHeader.subChunkSize;
+
+    waveformat.wFormatTag = WAVE_FORMAT_PCM;
+    waveformat.nSamplesPerSec = datFmt.sampleRate;
+    waveformat.wBitsPerSample = datFmt.bitsPerSample;
+    waveformat.nChannels = datFmt.numChannels;
+    waveformat.nBlockAlign = (waveformat.wBitsPerSample / 8) * waveformat.nChannels;
+    waveformat.nAvgBytesPerSec = waveformat.nSamplesPerSec * waveformat.nBlockAlign;
+    waveformat.cbSize = 0;
+
+    dsBufferDesc.dwSize = sizeof(DSBUFFERDESC);
+    dsBufferDesc.dwBufferBytes = dataSize;
+    dsBufferDesc.dwReserved = 0;
+    dsBufferDesc.lpwfxFormat = &waveformat;
+    dsBufferDesc.guid3DAlgorithm = GUID_NULL;
+    dsBufferDesc.dwFlags = DSBCAPS_CTRLVOLUME;
+
+    IDirectSoundBuffer* pTempBuffer = nullptr;
+    hr = m_pDirectSound->CreateSoundBuffer(&dsBufferDesc, &pTempBuffer, nullptr);
+    if (FAILED(hr))
+        return false;
+
+    hr = pTempBuffer->QueryInterface(IID_IDirectSoundBuffer8, (LPVOID*)&m_pSecondarySoundBuffer);
+    if (FAILED(hr))
+        return false;
+
+    pTempBuffer->Release();
+
+    unsigned char* pWaveData = new (std::nothrow) unsigned char[dataSize];
+    
+    unsigned char* pBuffer;
+    size_t bufferSize;
+
+    i = fread(pWaveData, 1, dataSize, fp);
+    if (i != dataSize)
+        return false;
+
+    hr = m_pSecondarySoundBuffer->Lock(0, dataSize, (void**)&pBuffer, (DWORD*)&bufferSize, nullptr, 0, 0);
+    if (FAILED(hr))
+        return false;
+
+    memcpy(pBuffer, pWaveData, dataSize);
+
+    hr = m_pSecondarySoundBuffer->Unlock((void*)pBuffer, bufferSize, nullptr, 0);
+    if (FAILED(hr))
+        return false;
+
+    hr = m_pSecondarySoundBuffer->SetVolume(0);
+    if (FAILED(hr))
+        return false;
+
+    hr = m_pSecondarySoundBuffer->SetCurrentPosition(0);
+    if (FAILED(hr))
+        return false;
+
+    hr = m_pSecondarySoundBuffer->Play(0, 0, 0);
     if (FAILED(hr))
         return false;
 
