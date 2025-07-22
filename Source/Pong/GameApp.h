@@ -106,6 +106,8 @@ private:
 
     void Update(float deltaTime);
     void Render();
+
+    void RenderQuad(const DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale);
 };
 
 extern GameApp* g_pApp;

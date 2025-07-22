@@ -379,13 +379,6 @@ void GameApp::Update(float deltaTime)
     {        
         case GameState::LoadingGameEnvironment:
         {
-            //m_ballPos.x = m_viewport.Width / 2.0f;
-            //m_ballPos.y = m_viewport.Height / 2.0f;
-            //m_ballSize.x = 10.0f;
-            //m_ballSize.y = 10.0f;
-            //m_ballVelocity.x = -350.0f;
-            //m_ballVelocity.y = 300.0f;
-
             m_ball.pos.x = m_viewport.Width / 2.0f;
             m_ball.pos.y = m_viewport.Height / 2.0f;
             m_ball.scale.x = 10.0f;
@@ -568,6 +561,41 @@ void GameApp::Render()
     m_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     
     // Draw the ball
+    RenderQuad(m_ball.pos, m_ball.scale);
+
+    // Draw the left (1) paddle
+    RenderQuad(m_paddle1.pos, m_paddle2.scale);
+
+    // Draw the right (2) paddle
+    RenderQuad(m_paddle2.pos, m_paddle2.scale);
+
+    // Draw the score for the paddle (1)
+    for (int i = 0; i < m_paddleScore1; ++i)
+    {
+        float offsetX = 10.0f * (float)i;
+        XMFLOAT2 pos;
+        pos.x = m_viewport.Width * 0.4f + offsetX;
+        pos.y = m_viewport.Height * 0.8f;
+
+        RenderQuad(pos, XMFLOAT2(6.0f, 6.0f));
+    }
+
+    // Draw the score for the paddle (2)
+    for (int i = 0; i < m_paddleScore2; ++i)
+    {
+        float offsetX = 10.0f * (float)i;
+        XMFLOAT2 pos;
+        pos.x = m_viewport.Width * 0.6f + offsetX;
+        pos.y = m_viewport.Height * 0.8f;
+
+        RenderQuad(pos, XMFLOAT2(6.0f, 6.0f));
+    }
+
+    m_pDXGISwapChain->Present(0, 0);
+}
+
+void GameApp::RenderQuad(const DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale)
+{
     {
         D3D11_MAPPED_SUBRESOURCE mappedResource;
         ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
@@ -576,8 +604,8 @@ void GameApp::Render()
 
         ConstantBuffer_PerObject* pPerObject = (ConstantBuffer_PerObject*)mappedResource.pData;
         XMStoreFloat4x4(&pPerObject->world, XMMatrixTranspose(
-                XMMatrixScalingFromVector(XMLoadFloat2(&m_ball.scale)) *
-                XMMatrixTranslationFromVector(XMLoadFloat2(&m_ball.pos))
+                XMMatrixScalingFromVector(XMLoadFloat2(&scale)) *
+                XMMatrixTranslationFromVector(XMLoadFloat2(&pos))
             )
         );
 
@@ -585,92 +613,4 @@ void GameApp::Render()
     }
     
     m_pd3dDeviceContext->DrawIndexed(m_numPolys * 3, 0, 0);
-
-    // Draw the left (1) paddle
-    {
-        D3D11_MAPPED_SUBRESOURCE mappedResource;
-        ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
-
-        m_pd3dDeviceContext->Map(m_pcbPerObject, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-
-        ConstantBuffer_PerObject* pPerObject = (ConstantBuffer_PerObject*)mappedResource.pData;
-        XMStoreFloat4x4(&pPerObject->world, XMMatrixTranspose(
-                XMMatrixScalingFromVector(XMLoadFloat2(&m_paddle1.scale)) *
-                XMMatrixTranslationFromVector(XMLoadFloat2(&m_paddle1.pos))
-            )
-        );
-
-        m_pd3dDeviceContext->Unmap(m_pcbPerObject, 0);
-    }
-
-    m_pd3dDeviceContext->DrawIndexed(m_numPolys * 3, 0, 0);
-
-    // Draw the right (2) paddle
-    {
-        D3D11_MAPPED_SUBRESOURCE mappedResource;
-        ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
-
-        m_pd3dDeviceContext->Map(m_pcbPerObject, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-
-        ConstantBuffer_PerObject* pPerObject = (ConstantBuffer_PerObject*)mappedResource.pData;
-        XMStoreFloat4x4(&pPerObject->world, XMMatrixTranspose(
-                XMMatrixScalingFromVector(XMLoadFloat2(&m_paddle2.scale)) *
-                XMMatrixTranslationFromVector(XMLoadFloat2(&m_paddle2.pos))
-            )
-        );
-
-        m_pd3dDeviceContext->Unmap(m_pcbPerObject, 0);
-    }
-
-    m_pd3dDeviceContext->DrawIndexed(m_numPolys * 3, 0, 0);
-
-    // Draw the score for the paddle (1)
-    for (int i = 0; i < m_paddleScore1; ++i)
-    {
-        float offsetX = 10.0f * i;
-
-        {
-            D3D11_MAPPED_SUBRESOURCE mappedResource;
-            ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
-
-            m_pd3dDeviceContext->Map(m_pcbPerObject, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-
-            ConstantBuffer_PerObject* pPerObject = (ConstantBuffer_PerObject*)mappedResource.pData;
-            XMStoreFloat4x4(&pPerObject->world, XMMatrixTranspose(
-                    XMMatrixScaling(6.0f, 6.0f, 1.0f) *
-                    XMMatrixTranslation(m_viewport.Width * 0.4f + offsetX, m_viewport.Height * 0.8f, 0.0f)
-                )
-            );
-
-            m_pd3dDeviceContext->Unmap(m_pcbPerObject, 0);
-        }
-
-        m_pd3dDeviceContext->DrawIndexed(m_numPolys * 3, 0, 0);
-    }
-
-    // Draw the score for the paddle (2)
-    for (int i = 0; i < m_paddleScore2; ++i)
-    {
-        float offsetX = 10.0f * i;
-
-        {
-            D3D11_MAPPED_SUBRESOURCE mappedResource;
-            ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
-
-            m_pd3dDeviceContext->Map(m_pcbPerObject, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-
-            ConstantBuffer_PerObject* pPerObject = (ConstantBuffer_PerObject*)mappedResource.pData;
-            XMStoreFloat4x4(&pPerObject->world, XMMatrixTranspose(
-                    XMMatrixScaling(6.0f, 6.0f, 1.0f) *
-                    XMMatrixTranslation(m_viewport.Width * 0.6f + offsetX, m_viewport.Height * 0.8f, 0.0f)
-                )
-            );
-
-            m_pd3dDeviceContext->Unmap(m_pcbPerObject, 0);
-        }
-
-        m_pd3dDeviceContext->DrawIndexed(m_numPolys * 3, 0, 0);
-    }
-
-    m_pDXGISwapChain->Present(0, 0);
 }
