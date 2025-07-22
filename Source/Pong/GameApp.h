@@ -106,11 +106,9 @@ class GameApp
     ID3D11Buffer*           m_pcbPerFrame;
     ID3D11Buffer*           m_pcbPerObject;
 
-    IDirectSound8*          m_pDirectSound;
-    IDirectSoundBuffer*     m_pPrimarySoundBuffer;
-    IDirectSound3DListener8* m_pSoundListener;
-
-    IDirectSoundBuffer8*    m_pSecondarySoundBuffer;
+    LPDIRECTSOUND8          m_pDirectSound;
+    LPDIRECTSOUNDBUFFER     m_pPrimarySoundBuffer;
+    LPDIRECTSOUNDBUFFER     m_pSecondarySoundBuffer;
 
     GameState               m_state;
 
@@ -138,6 +136,8 @@ public:
 private:
     bool InitDevice();
     bool InitSound();
+    
+    bool LoadWavFile(const char* name);
 
     void Update(float deltaTime);
     

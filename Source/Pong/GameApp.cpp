@@ -3,6 +3,7 @@
 #include <cassert>
 #include <new>
 #include <chrono>
+#include <fstream>
 #include "GameApp.h"
 #include "Debugging/Logger.h"
 
@@ -40,8 +41,6 @@ GameApp::GameApp()
 
     m_pDirectSound          = nullptr;
     m_pPrimarySoundBuffer   = nullptr;
-    m_pSoundListener        = nullptr;
-
     m_pSecondarySoundBuffer = nullptr;
 
     m_state                 = (GameState)0;
@@ -163,15 +162,20 @@ void GameApp::OnKeyUp(char c)
     {
         ++m_paddleScore2;
     }
+    else if (c == 'T')
+    {
+        HRESULT hr = m_pSecondarySoundBuffer->Play(0, 0, 0);
+        //if (FAILED(hr))
+        //    return false;
+    }
 }
 
 void GameApp::Uninitialize()
 {
-    m_pSecondarySoundBuffer->Stop();
+    if (m_pSecondarySoundBuffer != nullptr)
+        m_pSecondarySoundBuffer->Stop();
 
     RELEASE_COM(m_pSecondarySoundBuffer);
-
-    RELEASE_COM(m_pSoundListener);
     RELEASE_COM(m_pPrimarySoundBuffer);
     RELEASE_COM(m_pDirectSound);
 
@@ -394,6 +398,7 @@ bool GameApp::InitDevice()
 bool GameApp::InitSound()
 {
     HRESULT hr = S_OK;
+
     hr = DirectSoundCreate8(nullptr, &m_pDirectSound, nullptr);
     if (FAILED(hr))
         return false;
@@ -403,34 +408,37 @@ bool GameApp::InitSound()
         return false;
 
     DSBUFFERDESC dsBufferDesc;
-    ZeroMemory(&dsBufferDesc, sizeof(DSBUFFERDESC));
-    dsBufferDesc.dwSize = sizeof(DSBUFFERDESC);
-    dsBufferDesc.dwFlags = DSBCAPS_PRIMARYBUFFER | DSBCAPS_CTRLVOLUME | DSBCAPS_CTRL3D;
-    hr = m_pDirectSound->CreateSoundBuffer(&dsBufferDesc, &m_pPrimarySoundBuffer, nullptr);
+
+    DSBUFFERDESC bufferDesc;
+    ZeroMemory(&bufferDesc, sizeof(DSBUFFERDESC));
+    bufferDesc.dwSize = sizeof(DSBUFFERDESC);
+    bufferDesc.dwFlags = DSBCAPS_PRIMARYBUFFER;
+    hr = m_pDirectSound->CreateSoundBuffer(&bufferDesc, &m_pPrimarySoundBuffer, nullptr);
     if (FAILED(hr))
         return false;
 
     WAVEFORMATEX waveformat;
     ZeroMemory(&waveformat, sizeof(WAVEFORMATEX));
     waveformat.wFormatTag = WAVE_FORMAT_PCM;     
-    waveformat.nChannels = 8;      
+    waveformat.nChannels = 2;      
     waveformat.nSamplesPerSec = 44100; 
     waveformat.wBitsPerSample = 16; 
     waveformat.nBlockAlign = (waveformat.wBitsPerSample / 8) * waveformat.nChannels;    
-    waveformat.nAvgBytesPerSec = waveformat.nSamplesPerSec * waveformat.nBlockAlign;
-    waveformat.cbSize = 0;         
+    waveformat.nAvgBytesPerSec = waveformat.nSamplesPerSec * waveformat.nBlockAlign;       
     hr = m_pPrimarySoundBuffer->SetFormat(&waveformat);
     if (FAILED(hr))
         return false;
 
-    hr = m_pPrimarySoundBuffer->QueryInterface(IID_IDirectSound3DListener8, (LPVOID*)&m_pSoundListener);
-    if (FAILED(hr))
+    if (!LoadWavFile("Data/PaddleHit.wav"))
         return false;
 
-    m_pSoundListener->SetPosition(0.0f, 0.0f, 0.0f, DS3D_IMMEDIATE);
+    return true;
+}
 
+bool GameApp::LoadWavFile(const char* name)
+{
     FILE* fp = nullptr;
-    errno_t err = fopen_s(&fp, "Data/sound01.wav", "rb");
+    errno_t err = fopen_s(&fp, name, "rb");
     if (err != 0)
         return false;
     
@@ -476,18 +484,6 @@ bool GameApp::InitSound()
     i = fread(&datFmt, sizeof(FmtType), 1, fp);
     if (i != 1)
         return false;
-    
-    if (datFmt.audioFormat != WAVE_FORMAT_PCM)
-        return false;
-    
-    if (datFmt.numChannels != 2)
-        return false;
-
-    if (datFmt.sampleRate != 44100)
-        return false;
-
-    if (datFmt.bitsPerSample != 16)
-        return false;
 
     auto offset = subChunkHeader.subChunkSize - 16;
     fseek(fp, offset, SEEK_CUR);
@@ -514,6 +510,20 @@ bool GameApp::InitSound()
 
     size_t dataSize = subChunkHeader.subChunkSize;
 
+    unsigned char* pWaveData = new (std::nothrow) unsigned char[dataSize];
+    
+    unsigned char* pBuffer;
+    size_t bufferSize;
+
+    i = fread(pWaveData, 1, dataSize, fp);
+    if (i != dataSize)
+        return false;
+
+
+
+        
+    WAVEFORMATEX waveformat;
+    ZeroMemory(&waveformat, sizeof(WAVEFORMATEX));
     waveformat.wFormatTag = WAVE_FORMAT_PCM;
     waveformat.nSamplesPerSec = datFmt.sampleRate;
     waveformat.wBitsPerSample = datFmt.bitsPerSample;
@@ -522,31 +532,17 @@ bool GameApp::InitSound()
     waveformat.nAvgBytesPerSec = waveformat.nSamplesPerSec * waveformat.nBlockAlign;
     waveformat.cbSize = 0;
 
-    dsBufferDesc.dwSize = sizeof(DSBUFFERDESC);
-    dsBufferDesc.dwBufferBytes = dataSize;
-    dsBufferDesc.dwReserved = 0;
-    dsBufferDesc.lpwfxFormat = &waveformat;
-    dsBufferDesc.guid3DAlgorithm = GUID_NULL;
-    dsBufferDesc.dwFlags = DSBCAPS_CTRLVOLUME;
+    DSBUFFERDESC bufferDesc;
+    ZeroMemory(&bufferDesc, sizeof(DSBUFFERDESC));
+    bufferDesc.dwSize = sizeof(DSBUFFERDESC);
+    bufferDesc.dwBufferBytes = dataSize;
+    bufferDesc.dwReserved = 0;
+    bufferDesc.lpwfxFormat = &waveformat;
+    bufferDesc.guid3DAlgorithm = GUID_NULL;
+    bufferDesc.dwFlags = DSBCAPS_CTRLVOLUME;
 
-    IDirectSoundBuffer* pTempBuffer = nullptr;
-    hr = m_pDirectSound->CreateSoundBuffer(&dsBufferDesc, &pTempBuffer, nullptr);
+    HRESULT hr = m_pDirectSound->CreateSoundBuffer(&bufferDesc, &m_pSecondarySoundBuffer, nullptr);
     if (FAILED(hr))
-        return false;
-
-    hr = pTempBuffer->QueryInterface(IID_IDirectSoundBuffer8, (LPVOID*)&m_pSecondarySoundBuffer);
-    if (FAILED(hr))
-        return false;
-
-    pTempBuffer->Release();
-
-    unsigned char* pWaveData = new (std::nothrow) unsigned char[dataSize];
-    
-    unsigned char* pBuffer;
-    size_t bufferSize;
-
-    i = fread(pWaveData, 1, dataSize, fp);
-    if (i != dataSize)
         return false;
 
     hr = m_pSecondarySoundBuffer->Lock(0, dataSize, (void**)&pBuffer, (DWORD*)&bufferSize, nullptr, 0, 0);
@@ -559,15 +555,19 @@ bool GameApp::InitSound()
     if (FAILED(hr))
         return false;
 
-    hr = m_pSecondarySoundBuffer->SetVolume(0);
+
+
+
+
+
+
+
+
+    hr = m_pSecondarySoundBuffer->SetVolume(-500);
     if (FAILED(hr))
         return false;
 
     hr = m_pSecondarySoundBuffer->SetCurrentPosition(0);
-    if (FAILED(hr))
-        return false;
-
-    hr = m_pSecondarySoundBuffer->Play(0, 0, 0);
     if (FAILED(hr))
         return false;
 
@@ -585,7 +585,7 @@ void GameApp::Update(float deltaTime)
             m_ball.scale.x = 10.0f;
             m_ball.scale.y = 10.0f;
             m_ball.velocity.x = -350.0f;
-            m_ball.velocity.y = 300.0f;
+            //m_ball.velocity.y = 300.0f;
 
             m_paddle1.pos.x = m_viewport.Width * 0.1f;
             m_paddle1.pos.y = m_viewport.Height / 2.0f;
@@ -680,10 +680,12 @@ void GameApp::Update(float deltaTime)
             if (m_ball.pos.y + m_ball.scale.y / 2.0f > m_viewport.Height)
             {
                 m_ball.velocity.y = -m_ball.velocity.y;
+                //m_pSecondarySoundBuffer->Play(0, 0, 0);
             }
             else if (m_ball.pos.y + m_ball.scale.y / 2.0f < 0.0f)
             {
                 m_ball.velocity.y = -m_ball.velocity.y;
+                //m_pSecondarySoundBuffer->Play(0, 0, 0);
             }
 
             // Bounce the ball off the left and right paddles
@@ -692,6 +694,7 @@ void GameApp::Update(float deltaTime)
                 deltaPosY <= m_paddle2.scale.y / 2.0f)
             {
                 m_ball.velocity.x = -m_ball.velocity.x;
+                m_pSecondarySoundBuffer->Play(0, 0, 0);
             }
 
             deltaPosY = std::abs(m_ball.pos.y - m_paddle1.pos.y);
@@ -699,6 +702,7 @@ void GameApp::Update(float deltaTime)
                 deltaPosY <= m_paddle1.scale.y / 2.0f)
             {
                 m_ball.velocity.x = -m_ball.velocity.x;
+                m_pSecondarySoundBuffer->Play(0, 0, 0);
             }
 
             // Check if the ball has passed beyond the left or right edge — update the score accordingly

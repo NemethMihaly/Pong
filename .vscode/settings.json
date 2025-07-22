@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "xiosbase": "cpp",
+        "format": "cpp",
+        "initializer_list": "cpp",
+        "utility": "cpp",
+        "vector": "cpp",
+        "xstring": "cpp",
+        "xutility": "cpp",
+        "chrono": "cpp",
+        "forward_list": "cpp"
+    }
+}
