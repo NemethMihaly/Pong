@@ -121,20 +121,20 @@ LRESULT GameApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg)
     {
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        break;
+        case WM_DESTROY:
+            PostQuitMessage(0);
+            break;
 
-    case WM_KEYDOWN:
-        g_pApp->OnKeyDown((char)wParam);
-        break;
+        case WM_KEYDOWN:
+            g_pApp->OnKeyDown((char)wParam);
+            break;
 
-    case WM_KEYUP:
-        g_pApp->OnKeyUp((char)wParam);
-        break;
+        case WM_KEYUP:
+            g_pApp->OnKeyUp((char)wParam);
+            break;
 
-    default:
-        return DefWindowProc(hwnd, msg, wParam, lParam);
+        default:
+            return DefWindowProc(hwnd, msg, wParam, lParam);
     }
 
     return 0;
@@ -381,14 +381,14 @@ void GameApp::Update(float deltaTime)
 {  
     switch (m_state)
     {        
-    case GameState::LoadingGameEnvironment:
+        case GameState::LoadingGameEnvironment:
         {
             m_ballPos.x = m_viewport.Width / 2.0f;
             m_ballPos.y = m_viewport.Height / 2.0f;
             m_ballSize.x = 10.0f;
             m_ballSize.y = 10.0f;
             m_ballVelocity.x = -350.0f;
-            //m_ballVelocity.y = 300.0f;
+            m_ballVelocity.y = 300.0f;
 
             m_paddle1.pos.x = m_viewport.Width * 0.1f;
             m_paddle1.pos.y = m_viewport.Height / 2.0f;
@@ -405,7 +405,7 @@ void GameApp::Update(float deltaTime)
             break;
         }
 
-    case GameState::WaitingForPlayers:
+        case GameState::WaitingForPlayers:
         {
             LOG("GameApp", Info, "Press SPACE to start");
 
@@ -420,8 +420,9 @@ void GameApp::Update(float deltaTime)
             break;
         }
 
-    case GameState::Running:
+        case GameState::Running:
         {
+            // Set paddle 1's velocity based on player input
             if (m_key['W'])
             {
                 m_paddle1.velocity.y = 300.0f;
@@ -435,9 +436,25 @@ void GameApp::Update(float deltaTime)
                 m_paddle1.velocity.y = 0.0f;
             }
 
+            // Set paddle 2's velocity based on AI logic
+            if (m_paddle2.pos.y < m_ballPos.y)
+            {
+                m_paddle2.velocity.y = 290.0f;
+            }
+            else if (m_paddle2.pos.y > m_ballPos.y)
+            {
+                m_paddle2.velocity.y = -290.0f;
+            }
+            else
+            {
+                m_paddle2.velocity.y = 0.0f;
+            }
+
             // Update paddle positions based on their velocities
             m_paddle1.pos.x += m_paddle1.velocity.x * deltaTime;
             m_paddle1.pos.y += m_paddle1.velocity.y * deltaTime;
+            m_paddle2.pos.x += m_paddle2.velocity.x * deltaTime;
+            m_paddle2.pos.y += m_paddle2.velocity.y * deltaTime;
 
             // Clamp the paddle's Y position to ensure it stays within the top and bottom edges of the viewport
             if (m_paddle1.pos.y + m_paddle1.scale.y / 2.0f > m_viewport.Height)
@@ -447,6 +464,15 @@ void GameApp::Update(float deltaTime)
             else if (m_paddle1.pos.y - m_paddle1.scale.y / 2.0f < 0.0f)
             {
                 m_paddle1.pos.y = m_paddle1.scale.y / 2.0f;
+            }
+
+            if (m_paddle2.pos.y + m_paddle2.scale.y / 2.0f > m_viewport.Height)
+            {
+                m_paddle2.pos.y = m_viewport.Height - m_paddle2.scale.y / 2.0f;
+            }
+            else if (m_paddle2.pos.y - m_paddle2.scale.y / 2.0f < 0.0f)
+            {
+                m_paddle2.pos.y = m_paddle2.scale.y / 2.0f;
             }
 
             // Move the ball based on its velocity
@@ -493,8 +519,8 @@ void GameApp::Update(float deltaTime)
             break;
         }
 
-    default:
-        assert(0 && "Unrecognized state");
+        default:
+            assert(0 && "Unrecognized state");
     }
 }
 
