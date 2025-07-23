@@ -3,6 +3,7 @@
 #include <cassert>
 #include <new>
 #include <chrono>
+#include <fstream>
 #include "3rdParty/json.hpp"
 #include "GameApp.h"
 #include "Debugging/Logger.h"
@@ -72,6 +73,9 @@ bool GameApp::Initialize()
 {
     if (m_hInst == nullptr)
         m_hInst = GetModuleHandle(nullptr);
+
+    if (!LoadFontMetaData())
+        return false;
 
     WNDCLASS wc;
     wc.style = CS_HREDRAW | CS_VREDRAW;
@@ -592,7 +596,53 @@ bool GameApp::InitSound()
     return true;
 }
 
-bool GameApp::LoadWavFile(const char* name, LPDIRECTSOUNDBUFFER& soundBuffer)
+bool GameApp::LoadFontMetaData()
+{
+    std::ifstream fs("Data/FontAtlas-meta.json");
+    if (!fs.is_open())
+        return false;
+
+    nlohmann::json json = nlohmann::json::parse(fs);
+    nlohmann::json atlasData = json["atlas"];
+    m_fontAtlas.size = atlasData["size"];
+    m_fontAtlas.width = atlasData["width"];
+    m_fontAtlas.height = atlasData["height"];
+
+    for (const nlohmann::json& glyphData : json["glyphs"])
+    {
+        Glyph glyph;
+        ZeroMemory(&glyph, sizeof(Glyph));
+
+        glyph.unicode = glyphData["unicode"];
+        glyph.advance = glyphData["advance"];
+
+        if (glyphData.contains("planeBounds"))
+        {
+            nlohmann::json planeBounds = glyphData["planeBounds"];
+            glyph.planeLeft = planeBounds["left"];
+            glyph.planeBottom = planeBounds["bottom"];
+            glyph.planeRight = planeBounds["right"];
+            glyph.planeTop = planeBounds["top"];
+        }
+
+        if (glyphData.contains("atlasBounds"))
+        {
+            nlohmann::json atlasBounds = glyphData["atlasBounds"];
+            glyph.planeLeft = atlasBounds["left"];
+            glyph.planeBottom = atlasBounds["bottom"];
+            glyph.planeRight = atlasBounds["right"];
+            glyph.planeTop = atlasBounds["top"];
+        }
+
+        m_fontAtlas.glyphs[glyph.unicode] = glyph;
+    }
+
+    fs.close();
+
+    return true;
+}
+
+bool GameApp::LoadWavFile(const char *name, LPDIRECTSOUNDBUFFER &soundBuffer)
 {
     FILE* fp = nullptr;
     if (fopen_s(&fp, name, "rb") != 0)

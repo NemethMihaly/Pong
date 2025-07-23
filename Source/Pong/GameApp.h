@@ -8,6 +8,7 @@
 #include <DirectXMath.h>
 #include <mmsystem.h>
 #include <dsound.h>
+#include <unordered_map>
 
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d11.lib")
@@ -35,6 +36,30 @@ struct ConstantBuffer_PerFrame
 struct ConstantBuffer_PerObject
 {
     DirectX::XMFLOAT4X4 world;
+};
+
+struct Glyph
+{
+    uint32_t    unicode;
+    float       advance;
+
+    float       planeLeft;
+    float       planeBottom;
+    float       planeRight;
+    float       planeTop;
+
+    float       atlasLeft;
+    float       atlasBottom;
+    float       atlasRight; 
+    float       atlasTop;
+};
+
+struct FontAtlas
+{
+    uint32_t size;
+    uint32_t width;
+    uint32_t height;
+    std::unordered_map<uint32_t, Glyph> glyphs;
 };
 
 enum class GameState
@@ -121,6 +146,8 @@ class GameApp
 
     bool                    m_key[256];
 
+    FontAtlas               m_fontAtlas;
+
 public:
     GameApp();
 
@@ -137,6 +164,7 @@ private:
     bool InitDevice();
     bool InitSound();
     
+    bool LoadFontMetaData();
     bool LoadWavFile(const char* name, LPDIRECTSOUNDBUFFER& soundBuffer);
 
     void Update(float deltaTime);
