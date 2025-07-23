@@ -49,6 +49,8 @@ GameApp::GameApp()
     m_numTextPolys          = 0;
     m_pTextVertexBuffer     = nullptr;
     m_pTextIndexBuffer      = nullptr;
+    m_pFontAtlasTextureRV   = nullptr;
+    m_pSamplerLinear        = nullptr;
 
     m_pcbPerFrame           = nullptr;
     m_pcbPerObject          = nullptr;
@@ -208,6 +210,8 @@ void GameApp::Uninitialize()
     RELEASE_COM(m_pcbPerObject);
     RELEASE_COM(m_pcbPerFrame);
 
+    RELEASE_COM(m_pSamplerLinear);
+    RELEASE_COM(m_pFontAtlasTextureRV);
     RELEASE_COM(m_pTextIndexBuffer);
     RELEASE_COM(m_pTextVertexBuffer);
 
@@ -502,6 +506,23 @@ bool GameApp::InitDevice()
         if (FAILED(hr))
             return false;
     }
+
+    hr = CreateDDSTextureFromFile(m_pd3dDevice, L"Data/FontAtlas.dds", nullptr, &m_pFontAtlasTextureRV);
+    if (FAILED(hr))
+        return false;
+
+    D3D11_SAMPLER_DESC samplerDesc;
+    ZeroMemory(&samplerDesc, sizeof(D3D11_SAMPLER_DESC));
+    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    samplerDesc.MinLOD = 0;
+    samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+    hr = m_pd3dDevice->CreateSamplerState(&samplerDesc, &m_pSamplerLinear);
+    if (FAILED(hr))
+        return false;
 
     D3D11_BUFFER_DESC bufferDesc;
     ZeroMemory(&bufferDesc, sizeof(D3D11_BUFFER_DESC));
@@ -864,7 +885,7 @@ void GameApp::Render()
         m_pd3dDeviceContext->Unmap(m_pcbPerFrame, 0);
     }
 
-    float clearColor[] = { 0.0f, 0.125f, 0.25f, 1.0f };
+    float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
     m_pd3dDeviceContext->ClearRenderTargetView(m_pRenderTargetView, clearColor);
 
     m_pd3dDeviceContext->RSSetViewports(1, &m_viewport);
@@ -922,6 +943,8 @@ void GameApp::Render()
     m_pd3dDeviceContext->VSSetConstantBuffers(0, 1, &m_pcbPerFrame);
     m_pd3dDeviceContext->VSSetConstantBuffers(1, 1, &m_pcbPerObject);
     m_pd3dDeviceContext->PSSetShader(m_pTextPixelShader, nullptr, 0);
+    m_pd3dDeviceContext->PSSetShaderResources(0, 1, &m_pFontAtlasTextureRV);
+    m_pd3dDeviceContext->PSSetSamplers(0, 1, &m_pSamplerLinear);
 
     stride = sizeof(TextVertex);
     offset = 0;
@@ -929,7 +952,7 @@ void GameApp::Render()
     m_pd3dDeviceContext->IASetIndexBuffer(m_pTextIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
     m_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    RenderQuad(XMFLOAT2(m_viewport.Width / 2.0f, m_viewport.Height / 2.0f), XMFLOAT2(64.0f, 64.0f));
+    RenderQuad(XMFLOAT2(m_viewport.Width / 2.0f, m_viewport.Height / 2.0f), XMFLOAT2(256.0f, 256.0f));
 
     m_pDXGISwapChain->Present(0, 0);
 }

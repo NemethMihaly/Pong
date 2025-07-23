@@ -9,6 +9,10 @@ cbuffer cbPerObject : register(b1)
     matrix g_world;
 };
 
+Texture2D g_txFontAtlas : register(t0);
+
+SamplerState g_samplerLinear : register(s0);
+
 struct VertexShaderInput
 {
     float3 pos : POSITION;
@@ -35,5 +39,8 @@ VertexShaderOutput VSMain(VertexShaderInput input)
 
 float4 PSMain(VertexShaderOutput input) : SV_Target
 {
-    return float4(1.0f, 1.0f, 1.0f, 1.0f);
+    float alpha = g_txFontAtlas.Sample(g_samplerLinear, input.texCoord).r;
+    if (alpha < 0.5f)
+        discard;
+    return alpha;
 }

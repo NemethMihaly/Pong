@@ -4,6 +4,7 @@
 #include <dxgi.h>
 #include <d3d11.h>
 #include <d3dcompiler.h>
+#include "DDSTextureLoader11.h"
 #include <DirectXMath.h>
 #include <mmsystem.h>
 #include <dsound.h>
@@ -98,6 +99,8 @@ class GameApp
     UINT                    m_numTextPolys;
     ID3D11Buffer*           m_pTextVertexBuffer;
     ID3D11Buffer*           m_pTextIndexBuffer;
+    ID3D11ShaderResourceView* m_pFontAtlasTextureRV;
+    ID3D11SamplerState*     m_pSamplerLinear;
 
     ID3D11Buffer*           m_pcbPerFrame;
     ID3D11Buffer*           m_pcbPerObject;
