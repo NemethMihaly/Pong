@@ -736,6 +736,7 @@ bool GameApp::LoadWavFile(const char *name, LPDIRECTSOUNDBUFFER &soundBuffer)
         if (copiedWavData)
             break;
     }
+    delete[] pBuffer;
 
     DSBUFFERDESC bufferDesc;
     ZeroMemory(&bufferDesc, sizeof(DSBUFFERDESC));
@@ -760,6 +761,8 @@ bool GameApp::LoadWavFile(const char *name, LPDIRECTSOUNDBUFFER &soundBuffer)
     hr = soundBuffer->Unlock((void*)pLockedSoundBuffer, lockedSoundBufferSize, nullptr, 0);
     if (FAILED(hr))
         return false;
+
+    delete[] pWaveData;
 
     return true;
 }
@@ -867,12 +870,14 @@ void GameApp::Update(float deltaTime)
             m_ball.pos.y += m_ball.velocity.y * deltaTime;
 
             // Bounce the ball off the top and bottom edges of the viewport
-            if (m_ball.pos.y + m_ball.scale.y / 2.0f > m_viewport.Height)
+            if (m_ball.pos.y + m_ball.scale.y / 2.0f > m_viewport.Height &&
+                m_ball.velocity.y > 0.0f)
             {
                 m_ball.velocity.y = -m_ball.velocity.y;
                 m_pWallHitSoundBuffer->Play(0, 0, 0);
             }
-            else if (m_ball.pos.y + m_ball.scale.y / 2.0f < 0.0f)
+            else if (m_ball.pos.y + m_ball.scale.y / 2.0f < 0.0f &&
+                m_ball.velocity.y < 0.0f)
             {
                 m_ball.velocity.y = -m_ball.velocity.y;
                 m_pWallHitSoundBuffer->Play(0, 0, 0);
@@ -881,18 +886,22 @@ void GameApp::Update(float deltaTime)
             // Bounce the ball off the left and right paddles
             float deltaPosY = std::abs(m_ball.pos.y - m_paddle2.pos.y);
             if (m_ball.pos.x + m_ball.scale.x / 2.0f > m_paddle2.pos.x - m_paddle2.scale.x / 2.0f &&
-                deltaPosY <= m_paddle2.scale.y / 2.0f)
+                m_ball.pos.x - m_ball.scale.x / 2.0f < m_paddle2.pos.x + m_paddle2.scale.x / 2.0f &&
+                deltaPosY <= m_paddle2.scale.y / 2.0f &&
+                m_ball.velocity.x > 0.0f)
             {
                 m_ball.velocity.x = -m_ball.velocity.x;
-                m_pPaddleHitSoundBuffer->Play(0, 0, 0);
+                //m_pPaddleHitSoundBuffer->Play(0, 0, 0);
             }
 
             deltaPosY = std::abs(m_ball.pos.y - m_paddle1.pos.y);
             if (m_ball.pos.x - m_ball.scale.x / 2.0f < m_paddle1.pos.x + m_paddle1.scale.x / 2.0f &&
-                deltaPosY <= m_paddle1.scale.y / 2.0f)
+                m_ball.pos.x + m_ball.scale.x / 2.0f > m_paddle1.pos.x - m_paddle1.scale.x / 2.0f &&
+                deltaPosY <= m_paddle1.scale.y / 2.0f &&
+                m_ball.velocity.x < 0.0f)
             {
                 m_ball.velocity.x = -m_ball.velocity.x;
-                m_pPaddleHitSoundBuffer->Play(0, 0, 0);
+                //m_pPaddleHitSoundBuffer->Play(0, 0, 0);
             }
 
             // Check if the ball has passed beyond the left or right edge — update the score accordingly
