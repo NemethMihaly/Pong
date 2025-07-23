@@ -19,6 +19,12 @@ struct Vertex
     DirectX::XMFLOAT3 pos;
 };
 
+struct TextVertex
+{
+    DirectX::XMFLOAT3 pos;
+    DirectX::XMFLOAT2 texCoord;
+};
+
 struct ConstantBuffer_PerFrame
 {
     DirectX::XMFLOAT4X4 view;
@@ -70,15 +76,29 @@ class GameApp
     IDXGISwapChain*         m_pDXGISwapChain;
     ID3D11RenderTargetView* m_pRenderTargetView;
     D3D11_VIEWPORT          m_viewport;
+
     ID3D11InputLayout*      m_pVertexLayout;
     ID3D11VertexShader*     m_pVertexShader;
     ID3D11PixelShader*      m_pPixelShader;
+    
+    ID3D11InputLayout*      m_pTextVertexLayout;
+    ID3D11VertexShader*     m_pTextVertexShader;
+    ID3D11PixelShader*      m_pTextPixelShader;
+
     Vertex*                 m_pVerts;
     WORD*                   m_pIndices;
     UINT                    m_numVerts;
     UINT                    m_numPolys;
     ID3D11Buffer*           m_pVertexBuffer;
     ID3D11Buffer*           m_pIndexBuffer;
+    
+    TextVertex*             m_pTextVerts;
+    WORD*                   m_pTextIndices;
+    UINT                    m_numTextVerts;
+    UINT                    m_numTextPolys;
+    ID3D11Buffer*           m_pTextVertexBuffer;
+    ID3D11Buffer*           m_pTextIndexBuffer;
+
     ID3D11Buffer*           m_pcbPerFrame;
     ID3D11Buffer*           m_pcbPerObject;
 

@@ -3,6 +3,7 @@
 #include <cassert>
 #include <new>
 #include <chrono>
+#include "3rdParty/json.hpp"
 #include "GameApp.h"
 #include "Debugging/Logger.h"
 
@@ -26,15 +27,29 @@ GameApp::GameApp()
     m_pDXGISwapChain		= nullptr;
     m_pRenderTargetView		= nullptr;
     ZeroMemory(&m_viewport, sizeof(D3D11_VIEWPORT));
+
     m_pVertexLayout			= nullptr;
     m_pVertexShader			= nullptr;
     m_pPixelShader			= nullptr;
+    
+    m_pTextVertexLayout     = nullptr;
+    m_pTextVertexShader     = nullptr;
+    m_pTextPixelShader      = nullptr;
+
     m_pVerts                = nullptr;
     m_pIndices              = nullptr;
     m_numVerts              = 0;
     m_numPolys              = 0;
     m_pVertexBuffer         = nullptr;
     m_pIndexBuffer          = nullptr;
+    
+    m_pTextVerts            = nullptr;
+    m_pTextIndices          = nullptr;
+    m_numTextVerts          = 0;
+    m_numTextPolys          = 0;
+    m_pTextVertexBuffer     = nullptr;
+    m_pTextIndexBuffer      = nullptr;
+
     m_pcbPerFrame           = nullptr;
     m_pcbPerObject          = nullptr;
 
@@ -179,17 +194,34 @@ void GameApp::Uninitialize()
 
     if (m_pVerts != nullptr)
         delete[] m_pVerts;
+    if (m_pIndices != nullptr)
+        delete[] m_pIndices;
+
+    if (m_pTextVerts != nullptr)
+        delete[] m_pTextVerts;
+    if (m_pTextIndices != nullptr)
+        delete[] m_pTextIndices;
 
     if (m_pd3dDeviceContext != nullptr)
         m_pd3dDeviceContext->ClearState();
 
     RELEASE_COM(m_pcbPerObject);
     RELEASE_COM(m_pcbPerFrame);
+
+    RELEASE_COM(m_pTextIndexBuffer);
+    RELEASE_COM(m_pTextVertexBuffer);
+
     RELEASE_COM(m_pIndexBuffer);
     RELEASE_COM(m_pVertexBuffer);
+
+    RELEASE_COM(m_pTextPixelShader);
+    RELEASE_COM(m_pTextVertexShader);
+    RELEASE_COM(m_pTextVertexLayout);
+
     RELEASE_COM(m_pPixelShader);
     RELEASE_COM(m_pVertexShader);
     RELEASE_COM(m_pVertexLayout);
+    
     RELEASE_COM(m_pRenderTargetView);
     RELEASE_COM(m_pDXGISwapChain);
     RELEASE_COM(m_pd3dDeviceContext);
@@ -286,94 +318,193 @@ bool GameApp::InitDevice()
     m_viewport.MinDepth = 0.0f;
     m_viewport.MaxDepth = 1.0f;
 
-    ID3DBlob* pVSBlob = nullptr;
-    hr = CompileShaderFromFile(L"Data/Shader.hlsl", "VSMain", "vs_4_0", &pVSBlob);
-    if (FAILED(hr))
-        return false;
-
-    D3D11_INPUT_ELEMENT_DESC inputElementDescs[] =
     {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    };
+        ID3DBlob* pVSBlob = nullptr;
+        hr = CompileShaderFromFile(L"Data/Shader.hlsl", "VSMain", "vs_4_0", &pVSBlob);
+        if (FAILED(hr))
+            return false;
 
-    UINT numElements = ARRAYSIZE(inputElementDescs);
-    hr = m_pd3dDevice->CreateInputLayout(inputElementDescs, numElements, pVSBlob->GetBufferPointer(),
-        pVSBlob->GetBufferSize(), &m_pVertexLayout);
-    if (FAILED(hr))
-        return false;
+        D3D11_INPUT_ELEMENT_DESC inputElementDescs[] =
+        {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        };
 
-    hr = m_pd3dDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(),
-        nullptr, &m_pVertexShader);
-    pVSBlob->Release();
-    if (FAILED(hr))
-        return false;
+        UINT numElements = ARRAYSIZE(inputElementDescs);
+        hr = m_pd3dDevice->CreateInputLayout(inputElementDescs, numElements, pVSBlob->GetBufferPointer(),
+            pVSBlob->GetBufferSize(), &m_pVertexLayout);
+        if (FAILED(hr))
+            return false;
 
-    ID3DBlob* pPSBlob = nullptr;
-    hr = CompileShaderFromFile(L"Data/Shader.hlsl", "PSMain", "ps_4_0", &pPSBlob);
-    if (FAILED(hr))
-        return false;
-    
-    hr = m_pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(),
-        nullptr, &m_pPixelShader);
-    pPSBlob->Release();
-    if (FAILED(hr))
-        return false;
+        hr = m_pd3dDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(),
+            nullptr, &m_pVertexShader);
+        pVSBlob->Release();
+        if (FAILED(hr))
+            return false;
 
-    // A --- B
-    // |   / |
-    // | /   | 
-    // C --- D
+        ID3DBlob* pPSBlob = nullptr;
+        hr = CompileShaderFromFile(L"Data/Shader.hlsl", "PSMain", "ps_4_0", &pPSBlob);
+        if (FAILED(hr))
+            return false;
+        
+        hr = m_pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(),
+            nullptr, &m_pPixelShader);
+        pPSBlob->Release();
+        if (FAILED(hr))
+            return false;
+    }
 
-    m_numVerts = 4;
-    m_pVerts = new (std::nothrow) Vertex[m_numVerts];
-    assert(m_pVerts != nullptr && "Out of memory in GameApp::InitDevice()");
+    {
+        ID3DBlob* pVSBlob = nullptr;
+        hr = CompileShaderFromFile(L"Data/TextShader.hlsl", "VSMain", "vs_4_0", &pVSBlob);
+        if (FAILED(hr))
+            return false;
 
-    m_pVerts[0] = { XMFLOAT3( 0.5f, 0.5f, 0.0f) };
-    m_pVerts[1] = { XMFLOAT3(-0.5f, 0.5f, 0.0f) };
-    m_pVerts[2] = { XMFLOAT3( 0.5f,-0.5f, 0.0f) };
-    m_pVerts[3] = { XMFLOAT3(-0.5f,-0.5f, 0.0f) };
+        D3D11_INPUT_ELEMENT_DESC inputElementDescs[] =
+        {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        };
+
+        UINT numElements = ARRAYSIZE(inputElementDescs);
+        hr = m_pd3dDevice->CreateInputLayout(inputElementDescs, numElements, pVSBlob->GetBufferPointer(),
+            pVSBlob->GetBufferSize(), &m_pTextVertexLayout);
+        if (FAILED(hr))
+            return false;
+
+        hr = m_pd3dDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(),
+            nullptr, &m_pTextVertexShader);
+        pVSBlob->Release();
+        if (FAILED(hr))
+            return false;
+
+        ID3DBlob* pPSBlob = nullptr;
+        hr = CompileShaderFromFile(L"Data/TextShader.hlsl", "PSMain", "ps_4_0", &pPSBlob);
+        if (FAILED(hr))
+            return false;
+
+        hr = m_pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(),
+            nullptr, &m_pTextPixelShader);
+        pPSBlob->Release();
+        if (FAILED(hr))
+            return false;
+    }
+
+    {
+        // A --- B
+        // |   / |
+        // | /   | 
+        // C --- D
+
+        m_numVerts = 4;
+        m_pVerts = new (std::nothrow) Vertex[m_numVerts];
+        assert(m_pVerts != nullptr && "Out of memory in GameApp::InitDevice()");
+
+        m_pVerts[0] = { XMFLOAT3( 0.5f, 0.5f, 0.0f) };
+        m_pVerts[1] = { XMFLOAT3(-0.5f, 0.5f, 0.0f) };
+        m_pVerts[2] = { XMFLOAT3( 0.5f,-0.5f, 0.0f) };
+        m_pVerts[3] = { XMFLOAT3(-0.5f,-0.5f, 0.0f) };
+
+        D3D11_BUFFER_DESC bufferDesc;
+        ZeroMemory(&bufferDesc, sizeof(D3D11_BUFFER_DESC));
+        bufferDesc.ByteWidth = sizeof(Vertex) * m_numVerts;
+        bufferDesc.Usage = D3D11_USAGE_DEFAULT;
+        bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+        bufferDesc.CPUAccessFlags = 0;
+        D3D11_SUBRESOURCE_DATA initialData;
+        ZeroMemory(&initialData, sizeof(D3D11_SUBRESOURCE_DATA));
+        initialData.pSysMem = m_pVerts;
+        hr = m_pd3dDevice->CreateBuffer(&bufferDesc, &initialData, &m_pVertexBuffer);
+        if (FAILED(hr))
+            return false;
+
+        // A --- B
+        // |   / |
+        // | /   | 
+        // C --- D
+
+        m_numPolys = 2;
+        m_pIndices = new (std::nothrow) WORD[m_numPolys * 3];
+        assert(m_pIndices != nullptr && "Out of memory in GameApp::InitDevice()");
+
+        // Triangle #1: ACB
+        m_pIndices[0] = 0;
+        m_pIndices[1] = 2;
+        m_pIndices[2] = 1;
+
+        // Triangle #2: BCD
+        m_pIndices[3] = 1;
+        m_pIndices[4] = 2;
+        m_pIndices[5] = 3;
+
+        bufferDesc.ByteWidth = sizeof(WORD) * m_numPolys * 3;
+        bufferDesc.Usage = D3D11_USAGE_DEFAULT;
+        bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+        bufferDesc.CPUAccessFlags = 0;
+        initialData.pSysMem = m_pIndices;
+        hr = m_pd3dDevice->CreateBuffer(&bufferDesc, &initialData, &m_pIndexBuffer);
+        if (FAILED(hr))
+            return false;
+    }
+
+    {
+        // A --- B
+        // |   / |
+        // | /   | 
+        // C --- D
+
+        m_numTextVerts = 4;
+        m_pTextVerts = new (std::nothrow) TextVertex[m_numTextVerts];
+        assert(m_pTextVerts != nullptr && "Out of memory in GameApp::InitDevice()");
+
+        m_pTextVerts[0] = { XMFLOAT3( 0.5f, 0.5f, 0.0f), XMFLOAT2(1.0f, 0.0f) };
+        m_pTextVerts[1] = { XMFLOAT3(-0.5f, 0.5f, 0.0f), XMFLOAT2(0.0f, 0.0f) };
+        m_pTextVerts[2] = { XMFLOAT3( 0.5f,-0.5f, 0.0f), XMFLOAT2(1.0f, 1.0f) };
+        m_pTextVerts[3] = { XMFLOAT3(-0.5f,-0.5f, 0.0f), XMFLOAT2(0.0f, 1.0f) };
+
+        D3D11_BUFFER_DESC bufferDesc;
+        ZeroMemory(&bufferDesc, sizeof(D3D11_BUFFER_DESC));
+        bufferDesc.ByteWidth = sizeof(TextVertex) * m_numTextVerts;
+        bufferDesc.Usage = D3D11_USAGE_DEFAULT;
+        bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+        bufferDesc.CPUAccessFlags = 0;
+        D3D11_SUBRESOURCE_DATA initialData;
+        ZeroMemory(&initialData, sizeof(D3D11_SUBRESOURCE_DATA));
+        initialData.pSysMem = m_pTextVerts;
+        hr = m_pd3dDevice->CreateBuffer(&bufferDesc, &initialData, &m_pTextVertexBuffer);
+        if (FAILED(hr))
+            return false;   
+            
+        // A --- B
+        // |   / |
+        // | /   | 
+        // C --- D
+
+        m_numTextPolys = 2;
+        m_pTextIndices = new (std::nothrow) WORD[m_numTextPolys * 3];
+        assert(m_pTextIndices != nullptr && "Out of memory in GameApp::InitDevice()");
+
+        // Triangle #1: ACB
+        m_pTextIndices[0] = 0;
+        m_pTextIndices[1] = 2;
+        m_pTextIndices[2] = 1;
+
+        // Triangle #2: BCD
+        m_pTextIndices[3] = 1;
+        m_pTextIndices[4] = 2;
+        m_pTextIndices[5] = 3;
+
+        bufferDesc.ByteWidth = sizeof(WORD) * m_numTextPolys * 3;
+        bufferDesc.Usage = D3D11_USAGE_DEFAULT;
+        bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+        bufferDesc.CPUAccessFlags = 0;
+        initialData.pSysMem = m_pTextIndices;
+        hr = m_pd3dDevice->CreateBuffer(&bufferDesc, &initialData, &m_pTextIndexBuffer);
+        if (FAILED(hr))
+            return false;
+    }
 
     D3D11_BUFFER_DESC bufferDesc;
     ZeroMemory(&bufferDesc, sizeof(D3D11_BUFFER_DESC));
-    bufferDesc.ByteWidth = sizeof(Vertex) * m_numVerts;
-    bufferDesc.Usage = D3D11_USAGE_DEFAULT;
-    bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    bufferDesc.CPUAccessFlags = 0;
-    D3D11_SUBRESOURCE_DATA initialData;
-    ZeroMemory(&initialData, sizeof(D3D11_SUBRESOURCE_DATA));
-    initialData.pSysMem = m_pVerts;
-    hr = m_pd3dDevice->CreateBuffer(&bufferDesc, &initialData, &m_pVertexBuffer);
-    if (FAILED(hr))
-        return false;
-
-    // A --- B
-    // |   / |
-    // | /   | 
-    // C --- D
-
-    m_numPolys = 2;
-    m_pIndices = new (std::nothrow) WORD[m_numPolys * 3];
-    assert(m_pIndices != nullptr && "Out of memory in GameApp::InitDevice()");
-
-    // Triangle #1: ACB
-    m_pIndices[0] = 0;
-    m_pIndices[1] = 2;
-    m_pIndices[2] = 1;
-
-    // Triangle #2: BCD
-    m_pIndices[3] = 1;
-    m_pIndices[4] = 2;
-    m_pIndices[5] = 3;
-
-    bufferDesc.ByteWidth = sizeof(WORD) * m_numPolys * 3;
-    bufferDesc.Usage = D3D11_USAGE_DEFAULT;
-    bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    bufferDesc.CPUAccessFlags = 0;
-    initialData.pSysMem = m_pIndices;
-    hr = m_pd3dDevice->CreateBuffer(&bufferDesc, &initialData, &m_pIndexBuffer);
-    if (FAILED(hr))
-        return false;
-
     bufferDesc.ByteWidth = sizeof(ConstantBuffer_PerFrame);
     bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
     bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -542,22 +673,18 @@ bool GameApp::LoadWavFile(const char* name, LPDIRECTSOUNDBUFFER& soundBuffer)
     bufferDesc.lpwfxFormat = &waveformat;
     bufferDesc.guid3DAlgorithm = GUID_NULL;
     bufferDesc.dwFlags = DSBCAPS_CTRLVOLUME;
-
-    //HRESULT hr = m_pDirectSound->CreateSoundBuffer(&bufferDesc, &m_pWallHitSoundBuffer, nullptr);
     HRESULT hr = m_pDirectSound->CreateSoundBuffer(&bufferDesc, &soundBuffer, nullptr);
     if (FAILED(hr))
         return false;
 
     unsigned char*  pLockedSoundBuffer = nullptr;
     DWORD           lockedSoundBufferSize = 0;
-    //hr = m_pWallHitSoundBuffer->Lock(0, waveDataSize, (void**)&pLockedSoundBuffer, (DWORD*)&lockedSoundBufferSize, nullptr, 0, 0);
     hr = soundBuffer->Lock(0, waveDataSize, (void**)&pLockedSoundBuffer, (DWORD*)&lockedSoundBufferSize, nullptr, 0, 0);
     if (FAILED(hr))
         return false;
 
     CopyMemory(pLockedSoundBuffer, pWaveData, waveDataSize);
     
-    //hr = m_pWallHitSoundBuffer->Unlock((void*)pLockedSoundBuffer, lockedSoundBufferSize, nullptr, 0);
     hr = soundBuffer->Unlock((void*)pLockedSoundBuffer, lockedSoundBufferSize, nullptr, 0);
     if (FAILED(hr))
         return false;
@@ -786,6 +913,23 @@ void GameApp::Render()
 
         RenderQuad(pos, XMFLOAT2(6.0f, 6.0f));
     }
+
+    // Render texts:
+
+    m_pd3dDeviceContext->IASetInputLayout(m_pTextVertexLayout);
+
+    m_pd3dDeviceContext->VSSetShader(m_pTextVertexShader, nullptr, 0);
+    m_pd3dDeviceContext->VSSetConstantBuffers(0, 1, &m_pcbPerFrame);
+    m_pd3dDeviceContext->VSSetConstantBuffers(1, 1, &m_pcbPerObject);
+    m_pd3dDeviceContext->PSSetShader(m_pTextPixelShader, nullptr, 0);
+
+    stride = sizeof(TextVertex);
+    offset = 0;
+    m_pd3dDeviceContext->IASetVertexBuffers(0, 1, &m_pTextVertexBuffer, &stride, &offset);
+    m_pd3dDeviceContext->IASetIndexBuffer(m_pTextIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+    m_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    RenderQuad(XMFLOAT2(m_viewport.Width / 2.0f, m_viewport.Height / 2.0f), XMFLOAT2(64.0f, 64.0f));
 
     m_pDXGISwapChain->Present(0, 0);
 }

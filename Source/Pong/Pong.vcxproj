@@ -143,11 +143,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="DDSTextureLoader11.cpp" />
     <ClCompile Include="Debugging\Logger.cpp" />
     <ClCompile Include="GameApp.cpp" />
     <ClCompile Include="Pong.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DDSTextureLoader11.h" />
     <ClInclude Include="Debugging\Logger.h" />
     <ClInclude Include="GameApp.h" />
   </ItemGroup>
