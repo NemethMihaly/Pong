@@ -1,4 +1,5 @@
 .vs/
+.vscode/
 /Game/*
 !/Game/Data/
 Temp/
