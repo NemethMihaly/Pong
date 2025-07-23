@@ -40,7 +40,8 @@ GameApp::GameApp()
 
     m_pDirectSound          = nullptr;
     m_pPrimarySoundBuffer   = nullptr;
-    m_pSecondarySoundBuffer = nullptr;
+    m_pWallHitSoundBuffer   = nullptr;
+    m_pPaddleHitSoundBuffer = nullptr;
 
     m_state                 = (GameState)0;
 
@@ -161,20 +162,18 @@ void GameApp::OnKeyUp(char c)
     {
         ++m_paddleScore2;
     }
-    else if (c == 'T')
-    {
-        HRESULT hr = m_pSecondarySoundBuffer->Play(0, 0, 0);
-        //if (FAILED(hr))
-        //    return false;
-    }
 }
 
 void GameApp::Uninitialize()
 {
-    if (m_pSecondarySoundBuffer != nullptr)
-        m_pSecondarySoundBuffer->Stop();
+    if (m_pWallHitSoundBuffer != nullptr)
+        m_pWallHitSoundBuffer->Stop();
 
-    RELEASE_COM(m_pSecondarySoundBuffer);
+    if (m_pPaddleHitSoundBuffer != nullptr)
+        m_pPaddleHitSoundBuffer->Stop();
+
+    RELEASE_COM(m_pPaddleHitSoundBuffer);
+    RELEASE_COM(m_pWallHitSoundBuffer);
     RELEASE_COM(m_pPrimarySoundBuffer);
     RELEASE_COM(m_pDirectSound);
 
@@ -426,16 +425,22 @@ bool GameApp::InitSound()
     if (FAILED(hr))
         return false;
 
-    if (!LoadWavFile("Data/PaddleHit.wav"))
+    if (!LoadWavFile("Data/WallHit.wav", m_pWallHitSoundBuffer))
         return false;
 
-    if (FAILED(m_pSecondarySoundBuffer->SetVolume(-500)))
+    if (!LoadWavFile("Data/PaddleHit.wav", m_pPaddleHitSoundBuffer))
+        return false;
+
+    if (FAILED(m_pWallHitSoundBuffer->SetVolume(-500)))
+        return false;
+
+    if (FAILED(m_pPaddleHitSoundBuffer->SetVolume(-500)))
         return false;
 
     return true;
 }
 
-bool GameApp::LoadWavFile(const char* name)
+bool GameApp::LoadWavFile(const char* name, LPDIRECTSOUNDBUFFER& soundBuffer)
 {
     FILE* fp = nullptr;
     if (fopen_s(&fp, name, "rb") != 0)
@@ -538,19 +543,22 @@ bool GameApp::LoadWavFile(const char* name)
     bufferDesc.guid3DAlgorithm = GUID_NULL;
     bufferDesc.dwFlags = DSBCAPS_CTRLVOLUME;
 
-    HRESULT hr = m_pDirectSound->CreateSoundBuffer(&bufferDesc, &m_pSecondarySoundBuffer, nullptr);
+    //HRESULT hr = m_pDirectSound->CreateSoundBuffer(&bufferDesc, &m_pWallHitSoundBuffer, nullptr);
+    HRESULT hr = m_pDirectSound->CreateSoundBuffer(&bufferDesc, &soundBuffer, nullptr);
     if (FAILED(hr))
         return false;
 
     unsigned char*  pLockedSoundBuffer = nullptr;
     DWORD           lockedSoundBufferSize = 0;
-    hr = m_pSecondarySoundBuffer->Lock(0, waveDataSize, (void**)&pLockedSoundBuffer, (DWORD*)&lockedSoundBufferSize, nullptr, 0, 0);
+    //hr = m_pWallHitSoundBuffer->Lock(0, waveDataSize, (void**)&pLockedSoundBuffer, (DWORD*)&lockedSoundBufferSize, nullptr, 0, 0);
+    hr = soundBuffer->Lock(0, waveDataSize, (void**)&pLockedSoundBuffer, (DWORD*)&lockedSoundBufferSize, nullptr, 0, 0);
     if (FAILED(hr))
         return false;
 
     CopyMemory(pLockedSoundBuffer, pWaveData, waveDataSize);
     
-    hr = m_pSecondarySoundBuffer->Unlock((void*)pLockedSoundBuffer, lockedSoundBufferSize, nullptr, 0);
+    //hr = m_pWallHitSoundBuffer->Unlock((void*)pLockedSoundBuffer, lockedSoundBufferSize, nullptr, 0);
+    hr = soundBuffer->Unlock((void*)pLockedSoundBuffer, lockedSoundBufferSize, nullptr, 0);
     if (FAILED(hr))
         return false;
 
@@ -568,7 +576,7 @@ void GameApp::Update(float deltaTime)
             m_ball.scale.x = 10.0f;
             m_ball.scale.y = 10.0f;
             m_ball.velocity.x = -350.0f;
-            //m_ball.velocity.y = 300.0f;
+            m_ball.velocity.y = 300.0f;
 
             m_paddle1.pos.x = m_viewport.Width * 0.1f;
             m_paddle1.pos.y = m_viewport.Height / 2.0f;
@@ -663,12 +671,12 @@ void GameApp::Update(float deltaTime)
             if (m_ball.pos.y + m_ball.scale.y / 2.0f > m_viewport.Height)
             {
                 m_ball.velocity.y = -m_ball.velocity.y;
-                //m_pSecondarySoundBuffer->Play(0, 0, 0);
+                m_pWallHitSoundBuffer->Play(0, 0, 0);
             }
             else if (m_ball.pos.y + m_ball.scale.y / 2.0f < 0.0f)
             {
                 m_ball.velocity.y = -m_ball.velocity.y;
-                //m_pSecondarySoundBuffer->Play(0, 0, 0);
+                m_pWallHitSoundBuffer->Play(0, 0, 0);
             }
 
             // Bounce the ball off the left and right paddles
@@ -677,7 +685,7 @@ void GameApp::Update(float deltaTime)
                 deltaPosY <= m_paddle2.scale.y / 2.0f)
             {
                 m_ball.velocity.x = -m_ball.velocity.x;
-                m_pSecondarySoundBuffer->Play(0, 0, 0);
+                m_pPaddleHitSoundBuffer->Play(0, 0, 0);
             }
 
             deltaPosY = std::abs(m_ball.pos.y - m_paddle1.pos.y);
@@ -685,7 +693,7 @@ void GameApp::Update(float deltaTime)
                 deltaPosY <= m_paddle1.scale.y / 2.0f)
             {
                 m_ball.velocity.x = -m_ball.velocity.x;
-                m_pSecondarySoundBuffer->Play(0, 0, 0);
+                m_pPaddleHitSoundBuffer->Play(0, 0, 0);
             }
 
             // Check if the ball has passed beyond the left or right edge — update the score accordingly

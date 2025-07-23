@@ -12,7 +12,6 @@
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 
-#pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "dsound.lib")
 
 struct Vertex
@@ -29,29 +28,6 @@ struct ConstantBuffer_PerFrame
 struct ConstantBuffer_PerObject
 {
     DirectX::XMFLOAT4X4 world;
-};
-
-struct RiffWaveHeaderType
-{
-    char            chunkId[4];
-    unsigned long   chunkSize;
-    char            format[4];
-};
-
-struct SubChunkHeaderType
-{
-    char            subChunkId[4];
-    unsigned long   subChunkSize;
-};
-
-struct FmtType
-{
-    unsigned short  audioFormat;
-    unsigned short  numChannels;
-    unsigned long   sampleRate;
-    unsigned long   bytesPerSecond;
-    unsigned short  blockAlign;
-    unsigned short  bitsPerSample;
 };
 
 enum class GameState
@@ -108,7 +84,8 @@ class GameApp
 
     LPDIRECTSOUND8          m_pDirectSound;
     LPDIRECTSOUNDBUFFER     m_pPrimarySoundBuffer;
-    LPDIRECTSOUNDBUFFER     m_pSecondarySoundBuffer;
+    LPDIRECTSOUNDBUFFER     m_pWallHitSoundBuffer;
+    LPDIRECTSOUNDBUFFER     m_pPaddleHitSoundBuffer;
 
     GameState               m_state;
 
@@ -137,7 +114,7 @@ private:
     bool InitDevice();
     bool InitSound();
     
-    bool LoadWavFile(const char* name);
+    bool LoadWavFile(const char* name, LPDIRECTSOUNDBUFFER& soundBuffer);
 
     void Update(float deltaTime);
     
