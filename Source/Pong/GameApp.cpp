@@ -64,8 +64,8 @@ GameApp::GameApp()
 
     m_state                 = (GameState)0;
 
-    m_paddleScore1 = 0;
-    m_paddleScore2 = 0;
+    m_paddleScore1          = 0;
+    m_paddleScore2          = 0;
 
     ZeroMemory(&m_key, sizeof(m_key));
 }
@@ -1016,8 +1016,10 @@ void GameApp::Render()
     m_pd3dDeviceContext->IASetIndexBuffer(m_pTextIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
     m_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    RenderText(('0' + m_paddleScore1), XMFLOAT2(m_viewport.Width * 0.3f, m_viewport.Height * 0.8f), XMFLOAT2(48.0f, 48.0f));
-    RenderText(('0' + m_paddleScore2), XMFLOAT2(m_viewport.Width * 0.6f, m_viewport.Height * 0.8f), XMFLOAT2(48.0f, 48.0f));
+    RenderText(std::to_string(m_paddleScore1), XMFLOAT2(m_viewport.Width * 0.3f, m_viewport.Height * 0.8f), 48.0f);
+    RenderText(std::to_string(m_paddleScore2), XMFLOAT2(m_viewport.Width * 0.6f, m_viewport.Height * 0.8f), 48.0f);
+
+    RenderText("Hello, World!", XMFLOAT2(m_viewport.Width * 0.2f, m_viewport.Height * 0.6f), 12.0f);
 
     m_pDXGISwapChain->Present(0, 0);
 }
@@ -1043,41 +1045,48 @@ void GameApp::RenderQuad(const DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& 
     m_pd3dDeviceContext->DrawIndexed(m_numPolys * 3, 0, 0);
 }
 
-void GameApp::RenderText(char c, const DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale)
+void GameApp::RenderText(const std::string& str, const DirectX::XMFLOAT2& pos, float size)
 {
-    auto findIt = m_fontAtlas.glyphs.find(uint32_t(c));
-    if (findIt == m_fontAtlas.glyphs.end())
-        return;
+    float offset = 0.0f;
 
-    const Glyph& glyph = findIt->second;
-    float size = (float)m_fontAtlas.size;
-
-    float u0 = glyph.atlasLeft / (float)m_fontAtlas.width;
-    float u1 = glyph.atlasRight / (float)m_fontAtlas.width;
-    float v0 = 1.0f - glyph.atlasTop / (float)m_fontAtlas.height;
-    float v1 = 1.0f - glyph.atlasBottom / (float)m_fontAtlas.height;
-
-    m_pTextVerts[0] = { XMFLOAT3(glyph.planeRight * size, glyph.planeTop    * size, 0.0f), XMFLOAT2(u1, v0) };
-    m_pTextVerts[1] = { XMFLOAT3(glyph.planeLeft  * size, glyph.planeTop    * size, 0.0f), XMFLOAT2(u0, v0) };
-    m_pTextVerts[2] = { XMFLOAT3(glyph.planeRight * size, glyph.planeBottom * size, 0.0f), XMFLOAT2(u1, v1) };
-    m_pTextVerts[3] = { XMFLOAT3(glyph.planeLeft  * size, glyph.planeBottom * size, 0.0f), XMFLOAT2(u0, v1) };
-
-    m_pd3dDeviceContext->UpdateSubresource(m_pTextVertexBuffer, 0, nullptr, m_pTextVerts, 0, 0);
-
+    for (size_t i = 0; i < str.size(); ++i)
     {
-        D3D11_MAPPED_SUBRESOURCE mappedResource;
-        ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+        auto findIt = m_fontAtlas.glyphs.find((uint32_t)str[i]);
+        if (findIt == m_fontAtlas.glyphs.end())
+            continue; 
 
-        m_pd3dDeviceContext->Map(m_pcbPerObject, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+        const Glyph& glyph = findIt->second;
+        //float size = (float)m_fontAtlas.size;
 
-        ConstantBuffer_PerObject* pPerObject = (ConstantBuffer_PerObject*)mappedResource.pData;
-        XMStoreFloat4x4(&pPerObject->world, XMMatrixTranspose(
-                XMMatrixTranslationFromVector(XMLoadFloat2(&pos))
-            )
-        );
+        float u0 = glyph.atlasLeft / (float)m_fontAtlas.width;
+        float u1 = glyph.atlasRight / (float)m_fontAtlas.width;
+        float v0 = 1.0f - glyph.atlasTop / (float)m_fontAtlas.height;
+        float v1 = 1.0f - glyph.atlasBottom / (float)m_fontAtlas.height;
 
-        m_pd3dDeviceContext->Unmap(m_pcbPerObject, 0);
+        m_pTextVerts[0] = { XMFLOAT3(glyph.planeRight * size + offset, glyph.planeTop    * size, 0.0f), XMFLOAT2(u1, v0) };
+        m_pTextVerts[1] = { XMFLOAT3(glyph.planeLeft  * size + offset, glyph.planeTop    * size, 0.0f), XMFLOAT2(u0, v0) };
+        m_pTextVerts[2] = { XMFLOAT3(glyph.planeRight * size + offset, glyph.planeBottom * size, 0.0f), XMFLOAT2(u1, v1) };
+        m_pTextVerts[3] = { XMFLOAT3(glyph.planeLeft  * size + offset, glyph.planeBottom * size, 0.0f), XMFLOAT2(u0, v1) };
+
+        m_pd3dDeviceContext->UpdateSubresource(m_pTextVertexBuffer, 0, nullptr, m_pTextVerts, 0, 0);
+        
+        offset += glyph.advance * size;
+
+        {
+            D3D11_MAPPED_SUBRESOURCE mappedResource;
+            ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+
+            m_pd3dDeviceContext->Map(m_pcbPerObject, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+
+            ConstantBuffer_PerObject* pPerObject = (ConstantBuffer_PerObject*)mappedResource.pData;
+            XMStoreFloat4x4(&pPerObject->world, XMMatrixTranspose(
+                    XMMatrixTranslationFromVector(XMLoadFloat2(&pos))
+                )
+            );
+
+            m_pd3dDeviceContext->Unmap(m_pcbPerObject, 0);
+        }
+
+        m_pd3dDeviceContext->DrawIndexed(m_numTextPolys * 3, 0, 0);
     }
-
-    m_pd3dDeviceContext->DrawIndexed(m_numTextPolys * 3, 0, 0);
 }

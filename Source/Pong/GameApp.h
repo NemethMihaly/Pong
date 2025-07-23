@@ -8,6 +8,7 @@
 #include <DirectXMath.h>
 #include <mmsystem.h>
 #include <dsound.h>
+#include <string>
 #include <unordered_map>
 
 #pragma comment(lib, "dxgi.lib")
@@ -171,7 +172,7 @@ private:
     
     void Render();
     void RenderQuad(const DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale);
-    void RenderText(char c, const DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale);
+    void RenderText(const std::string& str, const DirectX::XMFLOAT2& pos, float size);
 };
 
 extern GameApp* g_pApp;
