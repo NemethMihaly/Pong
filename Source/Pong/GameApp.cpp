@@ -594,6 +594,12 @@ bool GameApp::InitSound()
     if (FAILED(m_pPaddleHitSoundBuffer->SetVolume(-500)))
         return false;
 
+    // For some reason, this shit is necessary to stop the game from freezing on the first Play call...
+    if (m_pWallHitSoundBuffer != nullptr)
+        m_pWallHitSoundBuffer->Play(0, 0, 0);
+    if (m_pPaddleHitSoundBuffer != nullptr)
+        m_pPaddleHitSoundBuffer->Play(0, 0, 0);
+
     return true;
 }
 
@@ -750,6 +756,22 @@ bool GameApp::LoadWavFile(const char *name, LPDIRECTSOUNDBUFFER &soundBuffer)
     if (FAILED(hr))
         return false;
 
+    DWORD status;
+    hr = soundBuffer->GetStatus(&status);
+    if (FAILED(hr))
+        return false;
+    if (status & DSBSTATUS_BUFFERLOST)
+    {
+        int count = 0;
+        do 
+        {
+            hr = soundBuffer->Restore();
+            if (hr == DSERR_BUFFERLOST)
+                Sleep(10);
+        }
+        while ((hr = soundBuffer->Restore()) == DSERR_BUFFERLOST && ++count < 100);
+    }
+
     unsigned char*  pLockedSoundBuffer = nullptr;
     DWORD           lockedSoundBufferSize = 0;
     hr = soundBuffer->Lock(0, waveDataSize, (void**)&pLockedSoundBuffer, (DWORD*)&lockedSoundBufferSize, nullptr, 0, 0);
@@ -762,8 +784,11 @@ bool GameApp::LoadWavFile(const char *name, LPDIRECTSOUNDBUFFER &soundBuffer)
     if (FAILED(hr))
         return false;
 
-    delete[] pWaveData;
+    hr = soundBuffer->SetCurrentPosition(0);
+    if (FAILED(hr))
+        return false;
 
+    delete[] pWaveData;
     return true;
 }
 
@@ -778,7 +803,7 @@ void GameApp::Update(float deltaTime)
             m_ball.scale.x = 10.0f;
             m_ball.scale.y = 10.0f;
             m_ball.velocity.x = -350.0f;
-            m_ball.velocity.y = 300.0f;
+            //m_ball.velocity.y = 300.0f;
 
             m_paddle1.pos.x = m_viewport.Width * 0.1f;
             m_paddle1.pos.y = m_viewport.Height / 2.0f;
@@ -891,7 +916,8 @@ void GameApp::Update(float deltaTime)
                 m_ball.velocity.x > 0.0f)
             {
                 m_ball.velocity.x = -m_ball.velocity.x;
-                //m_pPaddleHitSoundBuffer->Play(0, 0, 0);
+
+                m_pPaddleHitSoundBuffer->Play(0, 0, 0);
             }
 
             deltaPosY = std::abs(m_ball.pos.y - m_paddle1.pos.y);
@@ -901,7 +927,8 @@ void GameApp::Update(float deltaTime)
                 m_ball.velocity.x < 0.0f)
             {
                 m_ball.velocity.x = -m_ball.velocity.x;
-                //m_pPaddleHitSoundBuffer->Play(0, 0, 0);
+
+                m_pPaddleHitSoundBuffer->Play(0, 0, 0);
             }
 
             // Check if the ball has passed beyond the left or right edge — update the score accordingly
