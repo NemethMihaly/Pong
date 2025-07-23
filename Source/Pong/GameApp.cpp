@@ -803,14 +803,14 @@ void GameApp::Update(float deltaTime)
             m_ball.scale.x = 10.0f;
             m_ball.scale.y = 10.0f;
             m_ball.velocity.x = -350.0f;
-            //m_ball.velocity.y = 300.0f;
+            m_ball.velocity.y = 300.0f;
 
-            m_paddle1.pos.x = m_viewport.Width * 0.1f;
+            m_paddle1.pos.x = m_viewport.Width * 0.05f;
             m_paddle1.pos.y = m_viewport.Height / 2.0f;
             m_paddle1.scale.x = 10.0f;
             m_paddle1.scale.y = 60.0f;
 
-            m_paddle2.pos.x = m_viewport.Width * 0.9f;
+            m_paddle2.pos.x = m_viewport.Width * 0.95f;
             m_paddle2.pos.y = m_viewport.Height / 2.0f;
             m_paddle2.scale.x = 10.0f;
             m_paddle2.scale.y = 60.0f;
