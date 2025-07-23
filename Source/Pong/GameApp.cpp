@@ -3,7 +3,6 @@
 #include <cassert>
 #include <new>
 #include <chrono>
-#include <fstream>
 #include "GameApp.h"
 #include "Debugging/Logger.h"
 
@@ -407,8 +406,6 @@ bool GameApp::InitSound()
     if (FAILED(hr))
         return false;
 
-    DSBUFFERDESC dsBufferDesc;
-
     DSBUFFERDESC bufferDesc;
     ZeroMemory(&bufferDesc, sizeof(DSBUFFERDESC));
     bufferDesc.dwSize = sizeof(DSBUFFERDESC);
@@ -432,110 +429,110 @@ bool GameApp::InitSound()
     if (!LoadWavFile("Data/PaddleHit.wav"))
         return false;
 
+    if (FAILED(m_pSecondarySoundBuffer->SetVolume(-500)))
+        return false;
+
     return true;
 }
 
 bool GameApp::LoadWavFile(const char* name)
 {
     FILE* fp = nullptr;
-    errno_t err = fopen_s(&fp, name, "rb");
-    if (err != 0)
+    if (fopen_s(&fp, name, "rb") != 0)
         return false;
     
-    RiffWaveHeaderType riffWaveHeader;
-    size_t i = fread(&riffWaveHeader, sizeof(RiffWaveHeaderType), 1, fp);
-    if (i != 1)
-        return false;
-
-    if (riffWaveHeader.chunkId[0] != 'R' ||
-        riffWaveHeader.chunkId[1] != 'I' ||
-        riffWaveHeader.chunkId[2] != 'F' ||
-        riffWaveHeader.chunkId[3] != 'F')
-        return false;
-
-    if (riffWaveHeader.format[0] != 'W' ||
-        riffWaveHeader.format[1] != 'A' ||
-        riffWaveHeader.format[2] != 'V' ||
-        riffWaveHeader.format[3] != 'E')
-        return false;
-
-    SubChunkHeaderType subChunkHeader;
-    bool formatFound = false;
-    while (!formatFound)
+    fseek(fp, 0, SEEK_END);
+    size_t size = (size_t)ftell(fp);
+    if (size < 1)
     {
-        i = fread(&subChunkHeader, sizeof(SubChunkHeaderType), 1, fp);
-        if (i != 1)
-            return false;
+        fclose(fp);
+        return false;
+    }
+    rewind(fp);
 
-        if (subChunkHeader.subChunkId[0] == 'f' &&
-            subChunkHeader.subChunkId[1] == 'm' &&
-            subChunkHeader.subChunkId[2] == 't' &&
-            subChunkHeader.subChunkId[3] == ' ')
-        {
-            formatFound = true;
-        }
-        else
-        {
-            fseek(fp, subChunkHeader.subChunkSize, SEEK_CUR);
-        }
+    char* pBuffer = new (std::nothrow) char[size];
+    if (pBuffer == nullptr)
+    {
+        fclose(fp);
+        return false; 
+    }
+    if (fread_s(pBuffer, size, 1, size, fp) != size)
+    {
+        fclose(fp);
+        delete[] pBuffer;
+        return false;
     }
 
-    FmtType datFmt;
-    i = fread(&datFmt, sizeof(FmtType), 1, fp);
-    if (i != 1)
-        return false;
+    fclose(fp);
 
-    auto offset = subChunkHeader.subChunkSize - 16;
-    fseek(fp, offset, SEEK_CUR);
-
-    bool dataFound = false;
-    while (!dataFound)
-    {
-        i = fread(&subChunkHeader, sizeof(SubChunkHeaderType), 1, fp);
-        if (i != 1)
-            return false;
-
-        if (subChunkHeader.subChunkId[0] == 'd' && 
-            subChunkHeader.subChunkId[1] == 'a' && 
-            subChunkHeader.subChunkId[2] == 't' && 
-            subChunkHeader.subChunkId[3] == 'a')
-        {
-            dataFound = true;
-        }
-        else
-        {
-            fseek(fp, subChunkHeader.subChunkSize, SEEK_CUR);
-        }
-    }
-
-    size_t dataSize = subChunkHeader.subChunkSize;
-
-    unsigned char* pWaveData = new (std::nothrow) unsigned char[dataSize];
+    unsigned int type = 0;
+    unsigned int length = 0;
     
-    unsigned char* pBuffer;
-    size_t bufferSize;
+    unsigned int pos = 0;
 
-    i = fread(pWaveData, 1, dataSize, fp);
-    if (i != dataSize)
+    type = *((unsigned int*)(pBuffer + pos));
+    pos += sizeof(unsigned int);
+    length = *((unsigned int*)(pBuffer + pos));
+    pos += sizeof(unsigned int);
+    if (type != mmioFOURCC('R', 'I', 'F', 'F'))
+    {
+        delete[] pBuffer;
         return false;
+    }
 
+    type = *((unsigned int*)(pBuffer + pos));
+    pos += sizeof(unsigned int);
+    if (type != mmioFOURCC('W', 'A', 'V', 'E'))
+    {
+        delete[] pBuffer;
+        return false;
+    }
 
-
-        
     WAVEFORMATEX waveformat;
     ZeroMemory(&waveformat, sizeof(WAVEFORMATEX));
-    waveformat.wFormatTag = WAVE_FORMAT_PCM;
-    waveformat.nSamplesPerSec = datFmt.sampleRate;
-    waveformat.wBitsPerSample = datFmt.bitsPerSample;
-    waveformat.nChannels = datFmt.numChannels;
-    waveformat.nBlockAlign = (waveformat.wBitsPerSample / 8) * waveformat.nChannels;
-    waveformat.nAvgBytesPerSec = waveformat.nSamplesPerSec * waveformat.nBlockAlign;
-    waveformat.cbSize = 0;
+
+    unsigned char*  pWaveData = nullptr;
+    DWORD           waveDataSize = 0;
+
+    bool copiedWavData = false;
+    while (true)
+    {
+        type = *((unsigned int*)(pBuffer + pos));
+        pos += sizeof(unsigned int);
+        length = *((unsigned int*)(pBuffer + pos));
+        pos += sizeof(unsigned int);
+
+        switch (type)
+        {
+            case mmioFOURCC('f', 'm', 't', ' '):
+                CopyMemory(&waveformat, (pBuffer + pos), length);
+                waveformat.cbSize = (WORD)length;
+                break;
+
+            case mmioFOURCC('d', 'a', 't', 'a'):
+                waveDataSize = length;
+                pWaveData = new unsigned char[waveDataSize];
+                assert(pWaveData != nullptr && "Out of memory in LoadWavFile().");
+
+                CopyMemory(pWaveData, (pBuffer + pos), length);
+
+                copiedWavData = true;
+                
+                break;
+        }
+
+        pos += length;
+        if (length & 1)
+            ++pos;
+
+        if (copiedWavData)
+            break;
+    }
 
     DSBUFFERDESC bufferDesc;
     ZeroMemory(&bufferDesc, sizeof(DSBUFFERDESC));
     bufferDesc.dwSize = sizeof(DSBUFFERDESC);
-    bufferDesc.dwBufferBytes = dataSize;
+    bufferDesc.dwBufferBytes = waveDataSize;
     bufferDesc.dwReserved = 0;
     bufferDesc.lpwfxFormat = &waveformat;
     bufferDesc.guid3DAlgorithm = GUID_NULL;
@@ -545,29 +542,15 @@ bool GameApp::LoadWavFile(const char* name)
     if (FAILED(hr))
         return false;
 
-    hr = m_pSecondarySoundBuffer->Lock(0, dataSize, (void**)&pBuffer, (DWORD*)&bufferSize, nullptr, 0, 0);
+    unsigned char*  pLockedSoundBuffer = nullptr;
+    DWORD           lockedSoundBufferSize = 0;
+    hr = m_pSecondarySoundBuffer->Lock(0, waveDataSize, (void**)&pLockedSoundBuffer, (DWORD*)&lockedSoundBufferSize, nullptr, 0, 0);
     if (FAILED(hr))
         return false;
 
-    memcpy(pBuffer, pWaveData, dataSize);
-
-    hr = m_pSecondarySoundBuffer->Unlock((void*)pBuffer, bufferSize, nullptr, 0);
-    if (FAILED(hr))
-        return false;
-
-
-
-
-
-
-
-
-
-    hr = m_pSecondarySoundBuffer->SetVolume(-500);
-    if (FAILED(hr))
-        return false;
-
-    hr = m_pSecondarySoundBuffer->SetCurrentPosition(0);
+    CopyMemory(pLockedSoundBuffer, pWaveData, waveDataSize);
+    
+    hr = m_pSecondarySoundBuffer->Unlock((void*)pLockedSoundBuffer, lockedSoundBufferSize, nullptr, 0);
     if (FAILED(hr))
         return false;
 
