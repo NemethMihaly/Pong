@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstring>
 #include <cmath>
 #include <cassert>
 #include <new>
@@ -464,10 +465,10 @@ bool GameApp::InitDevice()
         m_pTextVerts = new (std::nothrow) TextVertex[m_numTextVerts];
         assert(m_pTextVerts != nullptr && "Out of memory in GameApp::InitDevice()");
 
-        m_pTextVerts[0] = { XMFLOAT3( 0.5f, 0.5f, 0.0f), XMFLOAT2(1.0f, 0.0f) };
-        m_pTextVerts[1] = { XMFLOAT3(-0.5f, 0.5f, 0.0f), XMFLOAT2(0.0f, 0.0f) };
-        m_pTextVerts[2] = { XMFLOAT3( 0.5f,-0.5f, 0.0f), XMFLOAT2(1.0f, 1.0f) };
-        m_pTextVerts[3] = { XMFLOAT3(-0.5f,-0.5f, 0.0f), XMFLOAT2(0.0f, 1.0f) };
+        //m_pTextVerts[0] = { XMFLOAT3( 0.5f, 0.5f, 0.0f), XMFLOAT2(1.0f, 0.0f) };
+        //m_pTextVerts[1] = { XMFLOAT3(-0.5f, 0.5f, 0.0f), XMFLOAT2(0.0f, 0.0f) };
+        //m_pTextVerts[2] = { XMFLOAT3( 0.5f,-0.5f, 0.0f), XMFLOAT2(1.0f, 1.0f) };
+        //m_pTextVerts[3] = { XMFLOAT3(-0.5f,-0.5f, 0.0f), XMFLOAT2(0.0f, 1.0f) };
 
         D3D11_BUFFER_DESC bufferDesc;
         ZeroMemory(&bufferDesc, sizeof(D3D11_BUFFER_DESC));
@@ -628,10 +629,10 @@ bool GameApp::LoadFontMetaData()
         if (glyphData.contains("atlasBounds"))
         {
             nlohmann::json atlasBounds = glyphData["atlasBounds"];
-            glyph.planeLeft = atlasBounds["left"];
-            glyph.planeBottom = atlasBounds["bottom"];
-            glyph.planeRight = atlasBounds["right"];
-            glyph.planeTop = atlasBounds["top"];
+            glyph.atlasLeft = atlasBounds["left"];
+            glyph.atlasBottom = atlasBounds["bottom"];
+            glyph.atlasRight = atlasBounds["right"];
+            glyph.atlasTop = atlasBounds["top"];
         }
 
         m_fontAtlas.glyphs[glyph.unicode] = glyph;
@@ -963,30 +964,7 @@ void GameApp::Render()
     // Draw the right (2) paddle
     RenderQuad(m_paddle2.pos, m_paddle2.scale);
 
-    // Draw the score for the paddle (1)
-    for (int i = 0; i < m_paddleScore1; ++i)
-    {
-        float offsetX = 10.0f * (float)i;
-        XMFLOAT2 pos;
-        pos.x = m_viewport.Width * 0.4f + offsetX;
-        pos.y = m_viewport.Height * 0.8f;
-
-        RenderQuad(pos, XMFLOAT2(6.0f, 6.0f));
-    }
-
-    // Draw the score for the paddle (2)
-    for (int i = 0; i < m_paddleScore2; ++i)
-    {
-        float offsetX = 10.0f * (float)i;
-        XMFLOAT2 pos;
-        pos.x = m_viewport.Width * 0.6f + offsetX;
-        pos.y = m_viewport.Height * 0.8f;
-
-        RenderQuad(pos, XMFLOAT2(6.0f, 6.0f));
-    }
-
     // Render texts:
-
     m_pd3dDeviceContext->IASetInputLayout(m_pTextVertexLayout);
 
     m_pd3dDeviceContext->VSSetShader(m_pTextVertexShader, nullptr, 0);
@@ -1002,7 +980,8 @@ void GameApp::Render()
     m_pd3dDeviceContext->IASetIndexBuffer(m_pTextIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
     m_pd3dDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    RenderQuad(XMFLOAT2(m_viewport.Width / 2.0f, m_viewport.Height / 2.0f), XMFLOAT2(256.0f, 256.0f));
+    RenderText(('0' + m_paddleScore1), XMFLOAT2(m_viewport.Width * 0.3f, m_viewport.Height * 0.8f), XMFLOAT2(48.0f, 48.0f));
+    RenderText(('0' + m_paddleScore2), XMFLOAT2(m_viewport.Width * 0.6f, m_viewport.Height * 0.8f), XMFLOAT2(48.0f, 48.0f));
 
     m_pDXGISwapChain->Present(0, 0);
 }
@@ -1026,4 +1005,43 @@ void GameApp::RenderQuad(const DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& 
     }
     
     m_pd3dDeviceContext->DrawIndexed(m_numPolys * 3, 0, 0);
+}
+
+void GameApp::RenderText(char c, const DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale)
+{
+    auto findIt = m_fontAtlas.glyphs.find(uint32_t(c));
+    if (findIt == m_fontAtlas.glyphs.end())
+        return;
+
+    const Glyph& glyph = findIt->second;
+    float size = (float)m_fontAtlas.size;
+
+    float u0 = glyph.atlasLeft / (float)m_fontAtlas.width;
+    float u1 = glyph.atlasRight / (float)m_fontAtlas.width;
+    float v0 = 1.0f - glyph.atlasTop / (float)m_fontAtlas.height;
+    float v1 = 1.0f - glyph.atlasBottom / (float)m_fontAtlas.height;
+
+    m_pTextVerts[0] = { XMFLOAT3(glyph.planeRight * size, glyph.planeTop    * size, 0.0f), XMFLOAT2(u1, v0) };
+    m_pTextVerts[1] = { XMFLOAT3(glyph.planeLeft  * size, glyph.planeTop    * size, 0.0f), XMFLOAT2(u0, v0) };
+    m_pTextVerts[2] = { XMFLOAT3(glyph.planeRight * size, glyph.planeBottom * size, 0.0f), XMFLOAT2(u1, v1) };
+    m_pTextVerts[3] = { XMFLOAT3(glyph.planeLeft  * size, glyph.planeBottom * size, 0.0f), XMFLOAT2(u0, v1) };
+
+    m_pd3dDeviceContext->UpdateSubresource(m_pTextVertexBuffer, 0, nullptr, m_pTextVerts, 0, 0);
+
+    {
+        D3D11_MAPPED_SUBRESOURCE mappedResource;
+        ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+
+        m_pd3dDeviceContext->Map(m_pcbPerObject, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+
+        ConstantBuffer_PerObject* pPerObject = (ConstantBuffer_PerObject*)mappedResource.pData;
+        XMStoreFloat4x4(&pPerObject->world, XMMatrixTranspose(
+                XMMatrixTranslationFromVector(XMLoadFloat2(&pos))
+            )
+        );
+
+        m_pd3dDeviceContext->Unmap(m_pcbPerObject, 0);
+    }
+
+    m_pd3dDeviceContext->DrawIndexed(m_numTextPolys * 3, 0, 0);
 }
