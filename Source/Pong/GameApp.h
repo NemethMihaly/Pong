@@ -57,11 +57,14 @@ class GameApp
     Renderer                m_renderer;
     Audio                   m_audio;
 
+    // Game Logic:
     GameState               m_state;
+    
     DirectX::XMFLOAT2       m_worldBounds;
+    
+    Paddle                  m_paddles[2];
     Ball                    m_ball;
-    Paddle                  m_paddle1;
-    Paddle                  m_paddle2;
+
     int                     m_paddleScore1;
     int                     m_paddleScore2;
 
@@ -85,8 +88,8 @@ private:
     void Update(float deltaTime);
     void UpdatePaddle(DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale, 
         DirectX::XMFLOAT2& velocity, BoundingBox& bounds, float deltaTime);
-    void UpdateBall(DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale, 
-        DirectX::XMFLOAT2& velocity, BoundingBox& bounds, float deltaTime);
+    void UpdateBall(DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale, DirectX::XMFLOAT2& velocity, 
+        BoundingBox& bounds, Paddle* paddles, size_t numPaddles, float deltaTime);
 
     void Render();
 };

@@ -21,6 +21,9 @@ GameApp::GameApp()
     m_hwnd		            = nullptr;
 
     m_state                 = GameState::Initializing;
+
+    m_worldBounds           = XMFLOAT2(0.0f, 0.0f);
+
     m_paddleScore1          = 0;
     m_paddleScore2          = 0;
 
@@ -145,21 +148,30 @@ void GameApp::Uninitialize()
 
 void GameApp::ChangeState(GameState newState)
 {
-    m_state = newState;
-}
-
-void GameApp::Update(float deltaTime)
-{  
-    switch (m_state)
-    {        
-        case GameState::Initializing:
-            ChangeState(GameState::LoadingGameEnvironment);
-            break;
-
+    switch (newState)
+    {
         case GameState::LoadingGameEnvironment:
         {
             m_worldBounds.x = 640.0f;
             m_worldBounds.y = 480.0f;
+
+            m_paddles[0].pos.x = m_worldBounds.x * 0.05f;
+            m_paddles[0].pos.y = m_worldBounds.y / 2.0f;
+            m_paddles[0].scale.x = 10.0f;
+            m_paddles[0].scale.y = 60.0f;
+            m_paddles[0].bounds.min.x = m_paddles[0].pos.x - (m_paddles[0].scale.x / 2.0f);
+            m_paddles[0].bounds.min.y = m_paddles[0].pos.y - (m_paddles[0].scale.y / 2.0f);
+            m_paddles[0].bounds.max.x = m_paddles[0].pos.x + (m_paddles[0].scale.x / 2.0f);
+            m_paddles[0].bounds.max.y = m_paddles[0].pos.y + (m_paddles[0].scale.y / 2.0f);
+
+            m_paddles[1].pos.x = m_worldBounds.x * 0.95f;
+            m_paddles[1].pos.y = m_worldBounds.y / 2.0f;
+            m_paddles[1].scale.x = 10.0f;
+            m_paddles[1].scale.y = 60.0f;
+            m_paddles[1].bounds.min.x = m_paddles[1].pos.x - (m_paddles[1].scale.x / 2.0f);
+            m_paddles[1].bounds.min.y = m_paddles[1].pos.y - (m_paddles[1].scale.y / 2.0f);
+            m_paddles[1].bounds.max.x = m_paddles[1].pos.x + (m_paddles[1].scale.x / 2.0f);
+            m_paddles[1].bounds.max.y = m_paddles[1].pos.y + (m_paddles[1].scale.y / 2.0f);
 
             m_ball.pos.x = m_worldBounds.x / 2.0f;
             m_ball.pos.y = m_worldBounds.y / 2.0f;
@@ -172,28 +184,24 @@ void GameApp::Update(float deltaTime)
             m_ball.bounds.max.x = m_ball.pos.x + (m_ball.scale.x / 2.0f);
             m_ball.bounds.max.y = m_ball.pos.y + (m_ball.scale.y / 2.0f);
 
-            m_paddle1.pos.x = m_worldBounds.x * 0.05f;
-            m_paddle1.pos.y = m_worldBounds.y / 2.0f;
-            m_paddle1.scale.x = 10.0f;
-            m_paddle1.scale.y = 60.0f;
-            m_paddle1.bounds.min.x = m_paddle1.pos.x - (m_paddle1.scale.x / 2.0f);
-            m_paddle1.bounds.min.y = m_paddle1.pos.y - (m_paddle1.scale.y / 2.0f);
-            m_paddle1.bounds.max.x = m_paddle1.pos.x + (m_paddle1.scale.x / 2.0f);
-            m_paddle1.bounds.max.y = m_paddle1.pos.y + (m_paddle1.scale.y / 2.0f);
-
-            m_paddle2.pos.x = m_worldBounds.x * 0.95f;
-            m_paddle2.pos.y = m_worldBounds.y / 2.0f;
-            m_paddle2.scale.x = 10.0f;
-            m_paddle2.scale.y = 60.0f;
-            m_paddle2.bounds.min.x = m_paddle2.pos.x - (m_paddle2.scale.x / 2.0f);
-            m_paddle2.bounds.min.y = m_paddle2.pos.y - (m_paddle2.scale.y / 2.0f);
-            m_paddle2.bounds.max.x = m_paddle2.pos.x + (m_paddle2.scale.x / 2.0f);
-            m_paddle2.bounds.max.y = m_paddle2.pos.y + (m_paddle2.scale.y / 2.0f);
-
             ChangeState(GameState::WaitingForPlayers);
-
-            break;
+            return;
         }
+    }
+
+    m_state = newState;
+}
+
+void GameApp::Update(float deltaTime)
+{  
+    switch (m_state)
+    {        
+        case GameState::Initializing:
+            ChangeState(GameState::LoadingGameEnvironment);
+            break;
+
+        case GameState::LoadingGameEnvironment:
+            break;
 
         case GameState::WaitingForPlayers:
         {
@@ -213,34 +221,37 @@ void GameApp::Update(float deltaTime)
             // Set paddle 1's velocity based on player input
             if (m_key['W'])
             {
-                m_paddle1.velocity.y = 300.0f;
+                m_paddles[0].velocity.y = 300.0f;
             }
             else if (m_key['S'])
             {
-                m_paddle1.velocity.y = -300.0f;
+                m_paddles[0].velocity.y = -300.0f;
             }
             else
             {
-                m_paddle1.velocity.y = 0.0f;
+                m_paddles[0].velocity.y = 0.0f;
             }
 
             // Set paddle 2's velocity based on AI logic
-            if (m_paddle2.pos.y < m_ball.pos.y)
+            if (m_paddles[1].pos.y < m_ball.pos.y)
             {
-                m_paddle2.velocity.y = 290.0f;
+                m_paddles[1].velocity.y = 290.0f;
             }
-            else if (m_paddle2.pos.y > m_ball.pos.y)
+            else if (m_paddles[1].pos.y > m_ball.pos.y)
             {
-                m_paddle2.velocity.y = -290.0f;
+                m_paddles[1].velocity.y = -290.0f;
             }
             else
             {
-                m_paddle2.velocity.y = 0.0f;
+                m_paddles[1].velocity.y = 0.0f;
             }
 
-            UpdatePaddle(m_paddle1.pos, m_paddle1.scale, m_paddle1.velocity, m_paddle1.bounds, deltaTime);
-            UpdatePaddle(m_paddle2.pos, m_paddle2.scale, m_paddle2.velocity, m_paddle2.bounds, deltaTime);
-            UpdateBall(m_ball.pos, m_ball.scale, m_ball.velocity, m_ball.bounds, deltaTime);
+            for (size_t i = 0; i < ARRAYSIZE(m_paddles); ++i)
+            {
+                UpdatePaddle(m_paddles[i].pos, m_paddles[i].scale, m_paddles[i].velocity, m_paddles[i].bounds, deltaTime); 
+            }
+
+            UpdateBall(m_ball.pos, m_ball.scale, m_ball.velocity, m_ball.bounds, m_paddles, ARRAYSIZE(m_paddles), deltaTime);
 
             break;
         }
@@ -272,8 +283,8 @@ void GameApp::UpdatePaddle(DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scal
     }
 }
 
-void GameApp::UpdateBall(DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale, 
-    DirectX::XMFLOAT2& velocity, BoundingBox& bounds, float deltaTime)
+void GameApp::UpdateBall(DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale, DirectX::XMFLOAT2& velocity, 
+    BoundingBox& bounds, Paddle* paddles, size_t numPaddles, float deltaTime)
 {
     pos.x += velocity.x * deltaTime;
     pos.y += velocity.y * deltaTime;
@@ -312,85 +323,49 @@ void GameApp::UpdateBall(DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale,
     }
 
     // Bounce the ball off the left and right paddles
-    if (bounds.Intersects(m_paddle1.bounds))
+    for (size_t i = 0; i < numPaddles; ++i)
     {
-        XMFLOAT2 penetration;
-
-        XMFLOAT2 overlap;
-        overlap.x = std::min(bounds.max.x, m_paddle1.bounds.max.x) - std::max(bounds.min.x, m_paddle1.bounds.min.x);
-        overlap.y = std::min(bounds.max.y, m_paddle1.bounds.max.y) - std::max(bounds.min.y, m_paddle1.bounds.min.y);
-        if (overlap.x > 0.0f && overlap.y > 0.0f)
+        const Paddle& paddle = paddles[i];
+        if (bounds.Intersects(paddle.bounds))
         {
-            // Resolve along the axis of least penetration
-            if (overlap.x < overlap.y)
+            XMFLOAT2 penetration;
+
+            XMFLOAT2 overlap;
+            overlap.x = std::min(bounds.max.x, paddle.bounds.max.x) - std::max(bounds.min.x, paddle.bounds.min.x);
+            overlap.y = std::min(bounds.max.y, paddle.bounds.max.y) - std::max(bounds.min.y, paddle.bounds.min.y);
+            if (overlap.x > 0.0f && overlap.y > 0.0f)
             {
-                float direction = (bounds.min.x + bounds.max.x < m_paddle1.bounds.min.x + m_paddle1.bounds.max.x) ? -1.0f : 1.0f;
-                penetration.x = direction * overlap.x;
-                penetration.y = 0.0f;
+                // Resolve along the axis of least penetration
+                if (overlap.x < overlap.y)
+                {
+                    float direction = (bounds.min.x + bounds.max.x < paddle.bounds.min.x + paddle.bounds.max.x) ? -1.0f : 1.0f;
+                    penetration.x = direction * overlap.x;
+                    penetration.y = 0.0f;
+                }
+                else
+                {
+                    float direction = (bounds.min.y + bounds.max.y < paddle.bounds.min.y + paddle.bounds.max.y) ? -1.0f : 1.0f;
+                    penetration.x = 0.0f;
+                    penetration.y = direction * overlap.y;
+                }
             }
             else
             {
-                float direction = (bounds.min.y + bounds.max.y < m_paddle1.bounds.min.y + m_paddle1.bounds.max.y) ? -1.0f : 1.0f;
                 penetration.x = 0.0f;
-                penetration.y = direction * overlap.y;
-            }
-        }
-        else
-        {
-            penetration.x = 0.0f;
-            penetration.y = 0.0f;
-        }
-
-        pos.x += penetration.x;
-        pos.y += penetration.y;
-
-        bounds.min.x += penetration.x;
-        bounds.min.y += penetration.y;
-        bounds.max.x += penetration.x;
-        bounds.max.y += penetration.y;
-
-        velocity.x = -velocity.x;
-        m_audio.Play(SoundEvent::PaddleHit);
-    }
-    else if (bounds.Intersects(m_paddle2.bounds))
-    {
-        XMFLOAT2 penetration;
-
-        XMFLOAT2 overlap;
-        overlap.x = std::min(bounds.max.x, m_paddle1.bounds.max.x) - std::max(bounds.min.x, m_paddle1.bounds.min.x);
-        overlap.y = std::min(bounds.max.y, m_paddle1.bounds.max.y) - std::max(bounds.min.y, m_paddle1.bounds.min.y);
-        if (overlap.x > 0.0f && overlap.y > 0.0f)
-        {
-            // Resolve along the axis of least penetration
-            if (overlap.x < overlap.y)
-            {
-                float direction = (bounds.min.x + bounds.max.x < m_paddle1.bounds.min.x + m_paddle1.bounds.max.x) ? -1.0f : 1.0f;
-                penetration.x = direction * overlap.x;
                 penetration.y = 0.0f;
             }
-            else
-            {
-                float direction = (bounds.min.y + bounds.max.y < m_paddle1.bounds.min.y + m_paddle1.bounds.max.y) ? -1.0f : 1.0f;
-                penetration.x = 0.0f;
-                penetration.y = direction * overlap.y;
-            }
+
+            pos.x += penetration.x;
+            pos.y += penetration.y;
+
+            bounds.min.x += penetration.x;
+            bounds.min.y += penetration.y;
+            bounds.max.x += penetration.x;
+            bounds.max.y += penetration.y;
+
+            velocity.x = -velocity.x;
+            m_audio.Play(SoundEvent::PaddleHit);
         }
-        else
-        {
-            penetration.x = 0.0f;
-            penetration.y = 0.0f;
-        }
-
-        pos.x += penetration.x;
-        pos.y += penetration.y;
-
-        bounds.min.x += penetration.x;
-        bounds.min.y += penetration.y;
-        bounds.max.x += penetration.x;
-        bounds.max.y += penetration.y;
-
-        velocity.x = -velocity.x;
-        m_audio.Play(SoundEvent::PaddleHit);
     }
 
     // Check if the ball has passed beyond the left or right edge — update the score accordingly
@@ -412,9 +387,12 @@ void GameApp::Render()
 
     m_renderer.PrepareQuadPass();
     {
+        for (size_t i = 0; i < ARRAYSIZE(m_paddles); ++i)
+        {
+            m_renderer.RenderQuad(m_paddles[i].pos, m_paddles[i].scale);
+        }
+
         m_renderer.RenderQuad(m_ball.pos, m_ball.scale);
-        m_renderer.RenderQuad(m_paddle1.pos, m_paddle2.scale);
-        m_renderer.RenderQuad(m_paddle2.pos, m_paddle2.scale);
     }
 
     m_renderer.PrepareTextPass();
