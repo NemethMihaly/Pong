@@ -13,14 +13,14 @@ enum class SoundEvent
     PaddleHit,
 };
 
-class DirectSoundAudio
+class Audio
 {
     LPDIRECTSOUND8          m_pDirectSound;
     LPDIRECTSOUNDBUFFER     m_pPrimarySoundBuffer;
     std::unordered_map<SoundEvent, LPDIRECTSOUNDBUFFER> m_sounds;
 
 public:
-    DirectSoundAudio();
+    Audio();
 
     bool Initialize(HWND hwnd);
     void Uninitialize();

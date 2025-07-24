@@ -1,18 +1,18 @@
 #include <cstdio>
 #include <cassert>
 #include <new>
-#include "DirectSoundAudio.h"
+#include "Audio.h"
 #include "Debugging/Logger.h"
 
 #define RELEASE_COM(x) { if (x != nullptr) { x->Release(); x = nullptr; } }
 
-DirectSoundAudio::DirectSoundAudio()
+Audio::Audio()
 {
     m_pDirectSound          = nullptr;
     m_pPrimarySoundBuffer   = nullptr;
 }
 
-bool DirectSoundAudio::Initialize(HWND hwnd)
+bool Audio::Initialize(HWND hwnd)
 {
         HRESULT hr = S_OK;
 
@@ -48,7 +48,7 @@ bool DirectSoundAudio::Initialize(HWND hwnd)
     return true;
 }
 
-void DirectSoundAudio::Uninitialize()
+void Audio::Uninitialize()
 {
     for (auto it = m_sounds.begin(); it != m_sounds.end(); ++it)
     {
@@ -64,7 +64,7 @@ void DirectSoundAudio::Uninitialize()
     RELEASE_COM(m_pDirectSound);
 }
 
-bool DirectSoundAudio::LoadWavFile(const char* name, LPDIRECTSOUNDBUFFER& outSoundBuffer)
+bool Audio::LoadWavFile(const char* name, LPDIRECTSOUNDBUFFER& outSoundBuffer)
 {
     FILE* fp = nullptr;
     if (fopen_s(&fp, name, "rb") != 0)
@@ -207,7 +207,7 @@ bool DirectSoundAudio::LoadWavFile(const char* name, LPDIRECTSOUNDBUFFER& outSou
     return true;
 }
 
-bool DirectSoundAudio::LoadSound(const char* name, SoundEvent event)
+bool Audio::LoadSound(const char* name, SoundEvent event)
 {
     LPDIRECTSOUNDBUFFER pSoundBuffer = nullptr;
     if (!LoadWavFile(name, pSoundBuffer))
@@ -218,7 +218,7 @@ bool DirectSoundAudio::LoadSound(const char* name, SoundEvent event)
     return true;
 }
 
-void DirectSoundAudio::Play(SoundEvent event)
+void Audio::Play(SoundEvent event)
 {
     auto findIt = m_sounds.find(event);
     if (findIt != m_sounds.end())

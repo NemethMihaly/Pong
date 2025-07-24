@@ -7,7 +7,8 @@
     </ClCompile>
     <ClCompile Include="GameApp.cpp" />
     <ClCompile Include="DDSTextureLoader11.cpp" />
-    <ClCompile Include="DirectSoundAudio.cpp" />
+    <ClCompile Include="Audio.cpp" />
+    <ClCompile Include="Renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Debugging">
@@ -20,6 +21,7 @@
     </ClInclude>
     <ClInclude Include="GameApp.h" />
     <ClInclude Include="DDSTextureLoader11.h" />
-    <ClInclude Include="DirectSoundAudio.h" />
+    <ClInclude Include="Audio.h" />
+    <ClInclude Include="Renderer.h" />
   </ItemGroup>
 </Project>

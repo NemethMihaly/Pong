@@ -145,15 +145,17 @@
   <ItemGroup>
     <ClCompile Include="DDSTextureLoader11.cpp" />
     <ClCompile Include="Debugging\Logger.cpp" />
-    <ClCompile Include="DirectSoundAudio.cpp" />
+    <ClCompile Include="Audio.cpp" />
     <ClCompile Include="GameApp.cpp" />
     <ClCompile Include="Pong.cpp" />
+    <ClCompile Include="Renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DDSTextureLoader11.h" />
     <ClInclude Include="Debugging\Logger.h" />
-    <ClInclude Include="DirectSoundAudio.h" />
+    <ClInclude Include="Audio.h" />
     <ClInclude Include="GameApp.h" />
+    <ClInclude Include="Renderer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
