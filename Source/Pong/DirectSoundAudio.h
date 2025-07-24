@@ -3,15 +3,21 @@
 #include <Windows.h>
 #include <mmsystem.h>
 #include <dsound.h>
+#include <unordered_map>
 
 #pragma comment(lib, "dsound.lib")
+
+enum class SoundEvent
+{
+    WallHit,
+    PaddleHit,
+};
 
 class DirectSoundAudio
 {
     LPDIRECTSOUND8          m_pDirectSound;
     LPDIRECTSOUNDBUFFER     m_pPrimarySoundBuffer;
-    LPDIRECTSOUNDBUFFER     m_pWallHitSoundBuffer;
-    LPDIRECTSOUNDBUFFER     m_pPaddleHitSoundBuffer;
+    std::unordered_map<SoundEvent, LPDIRECTSOUNDBUFFER> m_sounds;
 
 public:
     DirectSoundAudio();
@@ -19,8 +25,8 @@ public:
     bool Initialize(HWND hwnd);
     void Uninitialize();
 
-    bool LoadWavFile(const char* name, LPDIRECTSOUNDBUFFER& soundBuffer);
+    bool LoadWavFile(const char* name, LPDIRECTSOUNDBUFFER& outSoundBuffer);
+    bool LoadSound(const char* name, SoundEvent event);
 
-    void PlayWallHit();
-    void PlayPaddleHit();
+    void Play(SoundEvent event);
 };

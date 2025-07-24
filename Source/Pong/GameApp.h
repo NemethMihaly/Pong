@@ -6,8 +6,6 @@
 #include <d3dcompiler.h>
 #include "DDSTextureLoader11.h"
 #include <DirectXMath.h>
-//#include <mmsystem.h>
-//#include <dsound.h>
 #include <string>
 #include <unordered_map>
 #include "DirectSoundAudio.h"
@@ -15,8 +13,6 @@
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "d3dcompiler.lib")
-
-//#pragma comment(lib, "dsound.lib")
 
 struct Vertex
 {
@@ -132,10 +128,6 @@ class GameApp
     ID3D11Buffer*           m_pcbPerFrame;
     ID3D11Buffer*           m_pcbPerObject;
 
-    //LPDIRECTSOUND8          m_pDirectSound;
-    //LPDIRECTSOUNDBUFFER     m_pPrimarySoundBuffer;
-    //LPDIRECTSOUNDBUFFER     m_pWallHitSoundBuffer;
-    //LPDIRECTSOUNDBUFFER     m_pPaddleHitSoundBuffer;
     DirectSoundAudio        m_directSoundAudio;
 
     GameState               m_state;
@@ -165,10 +157,8 @@ public:
 
 private:
     bool InitDevice();
-    //bool InitSound();
     
     bool LoadFontMetaData();
-    //bool LoadWavFile(const char* name, LPDIRECTSOUNDBUFFER& soundBuffer);
 
     void Update(float deltaTime);
     

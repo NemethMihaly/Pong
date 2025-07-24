@@ -2,6 +2,7 @@
 #include <cassert>
 #include <new>
 #include "DirectSoundAudio.h"
+#include "Debugging/Logger.h"
 
 #define RELEASE_COM(x) { if (x != nullptr) { x->Release(); x = nullptr; } }
 
@@ -9,8 +10,6 @@ DirectSoundAudio::DirectSoundAudio()
 {
     m_pDirectSound          = nullptr;
     m_pPrimarySoundBuffer   = nullptr;
-    m_pWallHitSoundBuffer   = nullptr;
-    m_pPaddleHitSoundBuffer = nullptr;
 }
 
 bool DirectSoundAudio::Initialize(HWND hwnd)
@@ -46,42 +45,26 @@ bool DirectSoundAudio::Initialize(HWND hwnd)
     if (FAILED(hr))
         return false;
 
-    if (!LoadWavFile("Data/WallHit.wav", m_pWallHitSoundBuffer))
-        return false;
-
-    if (!LoadWavFile("Data/PaddleHit.wav", m_pPaddleHitSoundBuffer))
-        return false;
-
-    if (FAILED(m_pWallHitSoundBuffer->SetVolume(-500)))
-        return false;
-
-    if (FAILED(m_pPaddleHitSoundBuffer->SetVolume(-500)))
-        return false;
-
-    // For some reason, this shit is necessary to stop the game from freezing on the first Play call...
-    if (m_pWallHitSoundBuffer != nullptr)
-        m_pWallHitSoundBuffer->Play(0, 0, 0);
-    if (m_pPaddleHitSoundBuffer != nullptr)
-        m_pPaddleHitSoundBuffer->Play(0, 0, 0);
-
     return true;
 }
 
 void DirectSoundAudio::Uninitialize()
 {
-    if (m_pWallHitSoundBuffer != nullptr)
-        m_pWallHitSoundBuffer->Stop();
+    for (auto it = m_sounds.begin(); it != m_sounds.end(); ++it)
+    {
+        LPDIRECTSOUNDBUFFER pSoundBuffer = it->second;
+        if (pSoundBuffer != nullptr)
+            pSoundBuffer->Stop();
 
-    if (m_pPaddleHitSoundBuffer != nullptr)
-        m_pPaddleHitSoundBuffer->Stop();
+        RELEASE_COM(pSoundBuffer);
+    }
+    m_sounds.clear();
 
-    RELEASE_COM(m_pPaddleHitSoundBuffer);
-    RELEASE_COM(m_pWallHitSoundBuffer);
     RELEASE_COM(m_pPrimarySoundBuffer);
     RELEASE_COM(m_pDirectSound);
 }
 
-bool DirectSoundAudio::LoadWavFile(const char* name, LPDIRECTSOUNDBUFFER& soundBuffer)
+bool DirectSoundAudio::LoadWavFile(const char* name, LPDIRECTSOUNDBUFFER& outSoundBuffer)
 {
     FILE* fp = nullptr;
     if (fopen_s(&fp, name, "rb") != 0)
@@ -184,12 +167,12 @@ bool DirectSoundAudio::LoadWavFile(const char* name, LPDIRECTSOUNDBUFFER& soundB
     bufferDesc.lpwfxFormat = &waveformat;
     bufferDesc.guid3DAlgorithm = GUID_NULL;
     bufferDesc.dwFlags = DSBCAPS_CTRLVOLUME;
-    HRESULT hr = m_pDirectSound->CreateSoundBuffer(&bufferDesc, &soundBuffer, nullptr);
+    HRESULT hr = m_pDirectSound->CreateSoundBuffer(&bufferDesc, &outSoundBuffer, nullptr);
     if (FAILED(hr))
         return false;
 
     DWORD status;
-    hr = soundBuffer->GetStatus(&status);
+    hr = outSoundBuffer->GetStatus(&status);
     if (FAILED(hr))
         return false;
     if (status & DSBSTATUS_BUFFERLOST)
@@ -197,26 +180,26 @@ bool DirectSoundAudio::LoadWavFile(const char* name, LPDIRECTSOUNDBUFFER& soundB
         int count = 0;
         do 
         {
-            hr = soundBuffer->Restore();
+            hr = outSoundBuffer->Restore();
             if (hr == DSERR_BUFFERLOST)
                 Sleep(10);
         }
-        while ((hr = soundBuffer->Restore()) == DSERR_BUFFERLOST && ++count < 100);
+        while ((hr = outSoundBuffer->Restore()) == DSERR_BUFFERLOST && ++count < 100);
     }
 
     unsigned char*  pLockedSoundBuffer = nullptr;
     DWORD           lockedSoundBufferSize = 0;
-    hr = soundBuffer->Lock(0, waveDataSize, (void**)&pLockedSoundBuffer, (DWORD*)&lockedSoundBufferSize, nullptr, 0, 0);
+    hr = outSoundBuffer->Lock(0, waveDataSize, (void**)&pLockedSoundBuffer, (DWORD*)&lockedSoundBufferSize, nullptr, 0, 0);
     if (FAILED(hr))
         return false;
 
     CopyMemory(pLockedSoundBuffer, pWaveData, waveDataSize);
     
-    hr = soundBuffer->Unlock((void*)pLockedSoundBuffer, lockedSoundBufferSize, nullptr, 0);
+    hr = outSoundBuffer->Unlock((void*)pLockedSoundBuffer, lockedSoundBufferSize, nullptr, 0);
     if (FAILED(hr))
         return false;
 
-    hr = soundBuffer->SetCurrentPosition(0);
+    hr = outSoundBuffer->SetCurrentPosition(0);
     if (FAILED(hr))
         return false;
 
@@ -224,20 +207,24 @@ bool DirectSoundAudio::LoadWavFile(const char* name, LPDIRECTSOUNDBUFFER& soundB
     return true;
 }
 
-void DirectSoundAudio::PlayWallHit()
+bool DirectSoundAudio::LoadSound(const char* name, SoundEvent event)
 {
-    if (m_pWallHitSoundBuffer != nullptr)
-    {
-        m_pWallHitSoundBuffer->SetCurrentPosition(0);
-        m_pWallHitSoundBuffer->Play(0, 0, 0);
-    }
+    LPDIRECTSOUNDBUFFER pSoundBuffer = nullptr;
+    if (!LoadWavFile(name, pSoundBuffer))
+        return false;
+    
+    m_sounds[event] = pSoundBuffer;
+
+    return true;
 }
 
-void DirectSoundAudio::PlayPaddleHit()
+void DirectSoundAudio::Play(SoundEvent event)
 {
-    if (m_pPaddleHitSoundBuffer != nullptr)
+    auto findIt = m_sounds.find(event);
+    if (findIt != m_sounds.end())
     {
-        m_pPaddleHitSoundBuffer->SetCurrentPosition(0);
-        m_pPaddleHitSoundBuffer->Play(0, 0, 0);
+        LPDIRECTSOUNDBUFFER pSoundBuffer = findIt->second;
+        if (pSoundBuffer)
+            pSoundBuffer->Play(0, 0, 0);
     }
 }
