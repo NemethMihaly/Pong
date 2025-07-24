@@ -41,7 +41,7 @@ class GameApp
     HWND                    m_hwnd;
 
     Renderer                m_renderer;
-    Audio                   m_directSoundAudio;
+    Audio                   m_audio;
 
     GameState               m_state;
     DirectX::XMFLOAT2       m_worldBounds;

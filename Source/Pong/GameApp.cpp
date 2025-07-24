@@ -62,11 +62,11 @@ bool GameApp::Initialize()
     if (!m_renderer.LoadFontMetaData())
         return false;
 
-    if (!m_directSoundAudio.Initialize(m_hwnd))
+    if (!m_audio.Initialize(m_hwnd))
         return false;
-    if (!m_directSoundAudio.LoadSound("Data/WallHit.wav", SoundEvent::WallHit))
+    if (!m_audio.LoadSound("Data/WallHit.wav", SoundEvent::WallHit))
         return false;
-    if (!m_directSoundAudio.LoadSound("Data/PaddleHit.wav", SoundEvent::PaddleHit))
+    if (!m_audio.LoadSound("Data/PaddleHit.wav", SoundEvent::PaddleHit))
         return false;
 
     m_state = GameState::LoadingGameEnvironment;
@@ -150,7 +150,7 @@ void GameApp::OnKeyUp(char c)
 
 void GameApp::Uninitialize()
 {
-    m_directSoundAudio.Uninitialize();
+    m_audio.Uninitialize();
     m_renderer.Uninitialize();
 }
 
@@ -264,13 +264,13 @@ void GameApp::Update(float deltaTime)
                 m_ball.velocity.y > 0.0f)
             {
                 m_ball.velocity.y = -m_ball.velocity.y;
-                m_directSoundAudio.Play(SoundEvent::WallHit);
+                m_audio.Play(SoundEvent::WallHit);
             }
             else if (m_ball.pos.y + m_ball.scale.y / 2.0f < 0.0f &&
                 m_ball.velocity.y < 0.0f)
             {
                 m_ball.velocity.y = -m_ball.velocity.y;
-                m_directSoundAudio.Play(SoundEvent::WallHit);
+                m_audio.Play(SoundEvent::WallHit);
             }
 
             // Bounce the ball off the left and right paddles
@@ -281,7 +281,7 @@ void GameApp::Update(float deltaTime)
                 m_ball.velocity.x > 0.0f)
             {
                 m_ball.velocity.x = -m_ball.velocity.x;
-                m_directSoundAudio.Play(SoundEvent::PaddleHit);
+                m_audio.Play(SoundEvent::PaddleHit);
             }
 
             deltaPosY = std::abs(m_ball.pos.y - m_paddle1.pos.y);
@@ -291,7 +291,7 @@ void GameApp::Update(float deltaTime)
                 m_ball.velocity.x < 0.0f)
             {
                 m_ball.velocity.x = -m_ball.velocity.x;
-                m_directSoundAudio.Play(SoundEvent::PaddleHit);
+                m_audio.Play(SoundEvent::PaddleHit);
             }
 
             // Check if the ball has passed beyond the left or right edge — update the score accordingly
