@@ -1,5 +1,6 @@
 #pragma once
 
+#define NOMINMAX
 #include <Windows.h>
 #include <DirectXMath.h>
 #include "Renderer.h"
@@ -14,22 +15,34 @@ enum class GameState
     Running,
 };
 
+struct BoundingBox
+{
+    DirectX::XMFLOAT2 min;
+    DirectX::XMFLOAT2 max;
+
+    BoundingBox() { ZeroMemory(this, sizeof(BoundingBox)); }
+
+    bool Intersects(const BoundingBox& box) const;
+};
+
 struct Ball
 {
-    DirectX::XMFLOAT2 pos;
-    DirectX::XMFLOAT2 scale;
+    DirectX::XMFLOAT2   pos;
+    DirectX::XMFLOAT2   scale;
 
-    DirectX::XMFLOAT2 velocity;
+    DirectX::XMFLOAT2   velocity;
+    BoundingBox         bounds;
 
     Ball() { ZeroMemory(this, sizeof(Ball)); }
 };
 
 struct Paddle
 {
-    DirectX::XMFLOAT2 pos;
-    DirectX::XMFLOAT2 scale;
+    DirectX::XMFLOAT2   pos;
+    DirectX::XMFLOAT2   scale;
 
-    DirectX::XMFLOAT2 velocity;
+    DirectX::XMFLOAT2   velocity;
+    BoundingBox         bounds;
 
     Paddle() { ZeroMemory(this, sizeof(Paddle)); }
 };
@@ -70,8 +83,10 @@ private:
     void ChangeState(GameState newState);
 
     void Update(float deltaTime);
-    void UpdatePaddle(DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale, DirectX::XMFLOAT2& velocity, float deltaTime);
-    void UpdateBall(DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale, DirectX::XMFLOAT2& velocity, float deltaTime);
+    void UpdatePaddle(DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale, 
+        DirectX::XMFLOAT2& velocity, BoundingBox& bounds, float deltaTime);
+    void UpdateBall(DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale, 
+        DirectX::XMFLOAT2& velocity, BoundingBox& bounds, float deltaTime);
 
     void Render();
 };
