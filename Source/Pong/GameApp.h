@@ -8,6 +8,7 @@
 enum class GameState
 {
     Invalid = 0,
+    Initializing,
     LoadingGameEnvironment,
     WaitingForPlayers,
     Running,
@@ -66,6 +67,8 @@ public:
     void Uninitialize();
 
 private:
+    void ChangeState(GameState newState);
+
     void Update(float deltaTime);
     void Render();
 };

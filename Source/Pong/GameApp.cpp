@@ -20,7 +20,7 @@ GameApp::GameApp()
     ZeroMemory(&m_rcclient, sizeof(RECT));
     m_hwnd		            = nullptr;
 
-    m_state                 = (GameState)0;
+    m_state                 = GameState::Initializing;
     m_paddleScore1          = 0;
     m_paddleScore2          = 0;
 
@@ -154,10 +154,19 @@ void GameApp::Uninitialize()
     m_renderer.Uninitialize();
 }
 
+void GameApp::ChangeState(GameState newState)
+{
+    m_state = newState;
+}
+
 void GameApp::Update(float deltaTime)
 {  
     switch (m_state)
     {        
+        case GameState::Initializing:
+            ChangeState(GameState::LoadingGameEnvironment);
+            break;
+
         case GameState::LoadingGameEnvironment:
         {
             m_worldBounds.x = 640.0f;
@@ -180,7 +189,7 @@ void GameApp::Update(float deltaTime)
             m_paddle2.scale.x = 10.0f;
             m_paddle2.scale.y = 60.0f;
 
-            m_state = GameState::WaitingForPlayers;
+            ChangeState(GameState::WaitingForPlayers);
 
             break;
         }
@@ -190,7 +199,7 @@ void GameApp::Update(float deltaTime)
             LOG("GameApp", Info, "Press SPACE to start");
 
             if (m_key[' '])
-                m_state = GameState::Running;
+                ChangeState(GameState::Running);
 
             if (m_paddleScore1 >= 5 || m_paddleScore2 >= 5)
             {
@@ -298,12 +307,12 @@ void GameApp::Update(float deltaTime)
             if (m_ball.pos.x < 0.0f)
             {
                 ++m_paddleScore2;
-                m_state = GameState::LoadingGameEnvironment;
+                ChangeState(GameState::LoadingGameEnvironment);
             }
             else if (m_ball.pos.x > m_worldBounds.x)
             {
                 ++m_paddleScore1;
-                m_state = GameState::LoadingGameEnvironment;
+                ChangeState(GameState::LoadingGameEnvironment);
             }
 
             break;
