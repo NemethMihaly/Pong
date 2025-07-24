@@ -70,6 +70,9 @@ private:
     void ChangeState(GameState newState);
 
     void Update(float deltaTime);
+    void UpdatePaddle(DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale, DirectX::XMFLOAT2& velocity, float deltaTime);
+    void UpdateBall(DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale, DirectX::XMFLOAT2& velocity, float deltaTime);
+
     void Render();
 };
 

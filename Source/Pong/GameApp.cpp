@@ -69,8 +69,6 @@ bool GameApp::Initialize()
     if (!m_audio.LoadSound("Data/PaddleHit.wav", SoundEvent::PaddleHit))
         return false;
 
-    m_state = GameState::LoadingGameEnvironment;
-
     return true;
 }
 
@@ -137,15 +135,6 @@ void GameApp::OnKeyDown(char c)
 void GameApp::OnKeyUp(char c)
 {
     m_key[(int)c] = false;
-
-    if (c == 'E')
-    {
-        ++m_paddleScore1;
-    }
-    else if (c == 'R')
-    {
-        ++m_paddleScore2;
-    }
 }
 
 void GameApp::Uninitialize()
@@ -196,8 +185,6 @@ void GameApp::Update(float deltaTime)
 
         case GameState::WaitingForPlayers:
         {
-            LOG("GameApp", Info, "Press SPACE to start");
-
             if (m_key[' '])
                 ChangeState(GameState::Running);
 
@@ -239,87 +226,84 @@ void GameApp::Update(float deltaTime)
                 m_paddle2.velocity.y = 0.0f;
             }
 
-            // Update paddle positions based on their velocities
-            m_paddle1.pos.x += m_paddle1.velocity.x * deltaTime;
-            m_paddle1.pos.y += m_paddle1.velocity.y * deltaTime;
-            m_paddle2.pos.x += m_paddle2.velocity.x * deltaTime;
-            m_paddle2.pos.y += m_paddle2.velocity.y * deltaTime;
-
-            // Clamp the paddle's Y position to ensure it stays within the top and bottom edges of the viewport
-            if (m_paddle1.pos.y + m_paddle1.scale.y / 2.0f > m_worldBounds.y)
-            {
-                m_paddle1.pos.y = m_worldBounds.y - m_paddle1.scale.y / 2.0f;
-            }
-            else if (m_paddle1.pos.y - m_paddle1.scale.y / 2.0f < 0.0f)
-            {
-                m_paddle1.pos.y = m_paddle1.scale.y / 2.0f;
-            }
-
-            if (m_paddle2.pos.y + m_paddle2.scale.y / 2.0f > m_worldBounds.y)
-            {
-                m_paddle2.pos.y = m_worldBounds.y - m_paddle2.scale.y / 2.0f;
-            }
-            else if (m_paddle2.pos.y - m_paddle2.scale.y / 2.0f < 0.0f)
-            {
-                m_paddle2.pos.y = m_paddle2.scale.y / 2.0f;
-            }
-
-            // Move the ball based on its velocity
-            m_ball.pos.x += m_ball.velocity.x * deltaTime;
-            m_ball.pos.y += m_ball.velocity.y * deltaTime;
-
-            // Bounce the ball off the top and bottom edges of the viewport
-            if (m_ball.pos.y + m_ball.scale.y / 2.0f > m_worldBounds.y &&
-                m_ball.velocity.y > 0.0f)
-            {
-                m_ball.velocity.y = -m_ball.velocity.y;
-                m_audio.Play(SoundEvent::WallHit);
-            }
-            else if (m_ball.pos.y + m_ball.scale.y / 2.0f < 0.0f &&
-                m_ball.velocity.y < 0.0f)
-            {
-                m_ball.velocity.y = -m_ball.velocity.y;
-                m_audio.Play(SoundEvent::WallHit);
-            }
-
-            // Bounce the ball off the left and right paddles
-            float deltaPosY = std::abs(m_ball.pos.y - m_paddle2.pos.y);
-            if (m_ball.pos.x + m_ball.scale.x / 2.0f > m_paddle2.pos.x - m_paddle2.scale.x / 2.0f &&
-                m_ball.pos.x - m_ball.scale.x / 2.0f < m_paddle2.pos.x + m_paddle2.scale.x / 2.0f &&
-                deltaPosY <= m_paddle2.scale.y / 2.0f &&
-                m_ball.velocity.x > 0.0f)
-            {
-                m_ball.velocity.x = -m_ball.velocity.x;
-                m_audio.Play(SoundEvent::PaddleHit);
-            }
-
-            deltaPosY = std::abs(m_ball.pos.y - m_paddle1.pos.y);
-            if (m_ball.pos.x - m_ball.scale.x / 2.0f < m_paddle1.pos.x + m_paddle1.scale.x / 2.0f &&
-                m_ball.pos.x + m_ball.scale.x / 2.0f > m_paddle1.pos.x - m_paddle1.scale.x / 2.0f &&
-                deltaPosY <= m_paddle1.scale.y / 2.0f &&
-                m_ball.velocity.x < 0.0f)
-            {
-                m_ball.velocity.x = -m_ball.velocity.x;
-                m_audio.Play(SoundEvent::PaddleHit);
-            }
-
-            // Check if the ball has passed beyond the left or right edge — update the score accordingly
-            if (m_ball.pos.x < 0.0f)
-            {
-                ++m_paddleScore2;
-                ChangeState(GameState::LoadingGameEnvironment);
-            }
-            else if (m_ball.pos.x > m_worldBounds.x)
-            {
-                ++m_paddleScore1;
-                ChangeState(GameState::LoadingGameEnvironment);
-            }
+            UpdatePaddle(m_paddle1.pos, m_paddle1.scale, m_paddle1.velocity, deltaTime);
+            UpdatePaddle(m_paddle2.pos, m_paddle2.scale, m_paddle2.velocity, deltaTime);
+            UpdateBall(m_ball.pos, m_ball.scale, m_ball.velocity, deltaTime);
 
             break;
         }
 
         default:
-            assert(0 && "Unrecognized state");
+            assert(false && "Unrecognized state");
+    }
+}
+
+void GameApp::UpdatePaddle(DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale, DirectX::XMFLOAT2& velocity, float deltaTime)
+{
+    pos.x += velocity.x * deltaTime;
+    pos.y += velocity.y * deltaTime;
+
+    // Clamp the paddle's Y position to ensure it stays within the top and bottom edges of the world bounds
+    if (pos.y + scale.y / 2.0f > m_worldBounds.y)
+    {
+        pos.y = m_worldBounds.y - scale.y / 2.0f;
+    }
+    else if (pos.y - scale.y / 2.0f < 0.0f)
+    {
+        pos.y = scale.y / 2.0f;
+    }
+}
+
+void GameApp::UpdateBall(DirectX::XMFLOAT2& pos, const DirectX::XMFLOAT2& scale, DirectX::XMFLOAT2& velocity, float deltaTime)
+{
+    pos.x += velocity.x * deltaTime;
+    pos.y += velocity.y * deltaTime;
+
+    // Bounce the ball off the top and bottom edges of the world bounds
+    if (pos.y + scale.y / 2.0f > m_worldBounds.y &&
+        velocity.y > 0.0f)
+    {
+        velocity.y = -velocity.y;
+        m_audio.Play(SoundEvent::WallHit);
+    }
+    else if (pos.y + scale.y / 2.0f < 0.0f &&
+        velocity.y < 0.0f)
+    {
+        velocity.y = -velocity.y;
+        m_audio.Play(SoundEvent::WallHit);
+    }
+
+    // Bounce the ball off the left and right paddles
+    float deltaPosY = std::abs(pos.y - m_paddle2.pos.y);
+    if (pos.x + scale.x / 2.0f > m_paddle2.pos.x - m_paddle2.scale.x / 2.0f &&
+        pos.x - scale.x / 2.0f < m_paddle2.pos.x + m_paddle2.scale.x / 2.0f &&
+        deltaPosY <= m_paddle2.scale.y / 2.0f &&
+        velocity.x > 0.0f)
+    {
+        velocity.x = -velocity.x;
+        m_audio.Play(SoundEvent::PaddleHit);
+    }
+
+    deltaPosY = std::abs(pos.y - m_paddle1.pos.y);
+    if (pos.x - scale.x / 2.0f < m_paddle1.pos.x + m_paddle1.scale.x / 2.0f &&
+        pos.x + scale.x / 2.0f > m_paddle1.pos.x - m_paddle1.scale.x / 2.0f &&
+        deltaPosY <= m_paddle1.scale.y / 2.0f &&
+        velocity.x < 0.0f)
+    {
+        velocity.x = -velocity.x;
+        m_audio.Play(SoundEvent::PaddleHit);
+    }
+
+    // Check if the ball has passed beyond the left or right edge — update the score accordingly
+    if (pos.x < 0.0f)
+    {
+        ++m_paddleScore2;
+        ChangeState(GameState::LoadingGameEnvironment);
+    }
+    else if (pos.x > m_worldBounds.x)
+    {
+        ++m_paddleScore1;
+        ChangeState(GameState::LoadingGameEnvironment);
     }
 }
 
@@ -328,23 +312,21 @@ void GameApp::Render()
     m_renderer.PreRender();
 
     m_renderer.PrepareQuadPass();
+    {
+        m_renderer.RenderQuad(m_ball.pos, m_ball.scale);
+        m_renderer.RenderQuad(m_paddle1.pos, m_paddle2.scale);
+        m_renderer.RenderQuad(m_paddle2.pos, m_paddle2.scale);
+    }
 
-    // Draw the ball
-    m_renderer.RenderQuad(m_ball.pos, m_ball.scale);
-
-    // Draw the left (1) paddle
-    m_renderer.RenderQuad(m_paddle1.pos, m_paddle2.scale);
-
-    // Draw the right (2) paddle
-    m_renderer.RenderQuad(m_paddle2.pos, m_paddle2.scale);
-
-    // Render texts:
     m_renderer.PrepareTextPass();
+    {
 
-    m_renderer.RenderText(std::to_string(m_paddleScore1), XMFLOAT2(m_worldBounds.x * 0.3f, m_worldBounds.y * 0.8f), 48.0f);
-    m_renderer.RenderText(std::to_string(m_paddleScore2), XMFLOAT2(m_worldBounds.x * 0.6f, m_worldBounds.y * 0.8f), 48.0f);
+        m_renderer.RenderText(std::to_string(m_paddleScore1), XMFLOAT2(m_worldBounds.x * 0.3f, m_worldBounds.y * 0.8f), 48.0f);
+        m_renderer.RenderText(std::to_string(m_paddleScore2), XMFLOAT2(m_worldBounds.x * 0.6f, m_worldBounds.y * 0.8f), 48.0f);
 
-    m_renderer.RenderText("Hello, World!", XMFLOAT2(m_worldBounds.x * 0.2f, m_worldBounds.y * 0.6f), 12.0f);
+        if (m_state != GameState::Running)
+            m_renderer.RenderText("Press SPACE to start", XMFLOAT2(m_worldBounds.x * 0.2f, m_worldBounds.y * 0.6f), 12.0f);
+    }
 
     m_renderer.PostRender();
 }
