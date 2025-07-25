@@ -57,18 +57,14 @@ class GameApp
     Renderer                m_renderer;
     Audio                   m_audio;
 
-    // Game Logic:
+    bool                    m_key[256];
+
     GameState               m_state;
-    
     DirectX::XMFLOAT2       m_worldBounds;
-    
     Paddle                  m_paddles[2];
     Ball                    m_ball;
-
     int                     m_paddleScore1;
     int                     m_paddleScore2;
-
-    bool                    m_key[256];
 
 public:
     GameApp();
@@ -76,13 +72,14 @@ public:
     bool Initialize();
     void Run();
 
-    static LRESULT CALLBACK MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-    void OnKeyDown(char c);
-    void OnKeyUp(char c);
+    static LRESULT CALLBACK StaticMsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+    LRESULT CALLBACK MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
     void Uninitialize();
 
 private:
+    bool InitWindow();
+
     void ChangeState(GameState newState);
 
     void Update(float deltaTime);

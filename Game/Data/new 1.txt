@@ -1,0 +1,45 @@
+
+class GameApp
+{
+	Window 		window;
+	Renderer 	renderer;
+	Audio 		audio;
+	GameLogic 	game;
+	
+	void Update(float dt) { 
+		for 
+	
+		game.Update(dt);
+	}
+	
+	void Render() {
+		// ??
+	}
+};
+
+class GameLogic
+{
+	Ball 	ball;
+	Paddle 	paddles[2];
+
+	void Initalize();
+	
+	void Update(float dt) {
+		if (BallAndPaddleCollided()) {
+			PlaySound(PaddleHit); 
+		}
+	}
+};
+
+class GameView 
+{
+	Paddle* pControlledPaddle;
+	bool 	key[256];
+
+	LRESULT CALLBACK MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+	void Update(float dt)
+	{
+		
+	}
+};

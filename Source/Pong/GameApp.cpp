@@ -20,45 +20,18 @@ GameApp::GameApp()
     ZeroMemory(&m_rcclient, sizeof(RECT));
     m_hwnd		            = nullptr;
 
+    ZeroMemory(&m_key, sizeof(m_key));
+
     m_state                 = GameState::Initializing;
-
     m_worldBounds           = XMFLOAT2(0.0f, 0.0f);
-
     m_paddleScore1          = 0;
     m_paddleScore2          = 0;
-
-    ZeroMemory(&m_key, sizeof(m_key));
 }
 
 bool GameApp::Initialize()
 {
-    if (m_hInst == nullptr)
-        m_hInst = GetModuleHandle(nullptr);
-
-    WNDCLASS wc;
-    wc.style = CS_HREDRAW | CS_VREDRAW;
-    wc.lpfnWndProc = MsgProc;
-    wc.cbClsExtra = 0;
-    wc.cbWndExtra = 0;
-    wc.hInstance = m_hInst;
-    wc.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
-    wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-    wc.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
-    wc.lpszMenuName = nullptr;
-    wc.lpszClassName = L"PongWindowClass";
-    if (!RegisterClass(&wc))
+    if (!InitWindow())
         return false;
-
-    SetRect(&m_rcclient, 0, 0, 640, 480);
-    AdjustWindowRect(&m_rcclient, WS_OVERLAPPEDWINDOW, FALSE);
-
-    m_hwnd = CreateWindow(L"PongWindowClass", L"Pong", WS_OVERLAPPEDWINDOW, 
-        CW_USEDEFAULT, CW_USEDEFAULT, m_rcclient.right - m_rcclient.left, m_rcclient.bottom - m_rcclient.top, 
-        nullptr, nullptr, m_hInst, nullptr);
-    if (m_hwnd == nullptr)
-        return false;
-
-    GetClientRect(m_hwnd, &m_rcclient);
 
     if (!m_renderer.Initialize(m_hwnd))
         return false;
@@ -107,6 +80,11 @@ void GameApp::Run()
     }
 }
 
+LRESULT GameApp::StaticMsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    return g_pApp->MsgProc(hwnd, msg, wParam, lParam);
+}
+
 LRESULT GameApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg)
@@ -116,11 +94,11 @@ LRESULT GameApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             break;
 
         case WM_KEYDOWN:
-            g_pApp->OnKeyDown((char)wParam);
+            m_key[BYTE(wParam)] = true;
             break;
 
         case WM_KEYUP:
-            g_pApp->OnKeyUp((char)wParam);
+            m_key[BYTE(wParam)] = false;
             break;
 
         default:
@@ -130,20 +108,43 @@ LRESULT GameApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-void GameApp::OnKeyDown(char c)
-{
-    m_key[(int)c] = true;
-}
-
-void GameApp::OnKeyUp(char c)
-{
-    m_key[(int)c] = false;
-}
-
 void GameApp::Uninitialize()
 {
     m_audio.Uninitialize();
     m_renderer.Uninitialize();
+}
+
+bool GameApp::InitWindow()
+{
+    if (m_hInst == nullptr)
+        m_hInst = GetModuleHandle(nullptr);
+
+    WNDCLASS wc;
+    wc.style = CS_HREDRAW | CS_VREDRAW;
+    wc.lpfnWndProc = StaticMsgProc;
+    wc.cbClsExtra = 0;
+    wc.cbWndExtra = 0;
+    wc.hInstance = m_hInst;
+    wc.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
+    wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    wc.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
+    wc.lpszMenuName = nullptr;
+    wc.lpszClassName = L"PongWindowClass";
+    if (!RegisterClass(&wc))
+        return false;
+
+    SetRect(&m_rcclient, 0, 0, 640, 480);
+    AdjustWindowRect(&m_rcclient, WS_OVERLAPPEDWINDOW, FALSE);
+
+    m_hwnd = CreateWindow(L"PongWindowClass", L"Pong", WS_OVERLAPPEDWINDOW, 
+        CW_USEDEFAULT, CW_USEDEFAULT, m_rcclient.right - m_rcclient.left, m_rcclient.bottom - m_rcclient.top, 
+        nullptr, nullptr, m_hInst, nullptr);
+    if (m_hwnd == nullptr)
+        return false;
+
+    GetClientRect(m_hwnd, &m_rcclient);
+
+    return true;
 }
 
 void GameApp::ChangeState(GameState newState)
@@ -385,6 +386,7 @@ void GameApp::Render()
 {
     m_renderer.PreRender();
 
+    // Render the ball and the paddles:
     m_renderer.PrepareQuadPass();
     {
         for (size_t i = 0; i < ARRAYSIZE(m_paddles); ++i)
@@ -395,6 +397,7 @@ void GameApp::Render()
         m_renderer.RenderQuad(m_ball.pos, m_ball.scale);
     }
 
+    // Render texts:
     m_renderer.PrepareTextPass();
     {
 
